@@ -1,0 +1,12 @@
+torch
+numpy
+scipy
+matplotlib
+datasets
+tokenizers
+protobuf==3.20.*
+sentencepiece
+transformers
+peft
+accelerate
+bitsandbytes

@@ -16,7 +16,7 @@ trainer = BpeTrainer(special_tokens=["[UNK]", "[CLS]", "[SEP]", "[PAD]", "[MASK]
 dataset = load_dataset('range3/cc100-ja')
 
 def dataset_iter():
-    skip=1
+    skip=100
     for i in range(0, len(dataset['train']), skip):
         yield dataset['train'][i]['text']
 

@@ -19,3 +19,13 @@ Install modules.
 ```
 $ python -m pip install -r requirements.txt
 ```
+
+## License
+
+MIT license unless licensing terms is explicitly denoted.
+Some scripts are licensed under Apache 2.0.
+
+### Third party licenses
+
+Chinese LLaMa: Apache 2.0: https://github.com/ymcui/Chinese-LLaMA-Alpaca
+
