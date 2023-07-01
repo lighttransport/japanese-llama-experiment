@@ -1,3 +1,4 @@
+# Japanese LLaMa experiment.
 
 ## Requirements
 
@@ -19,6 +20,50 @@ Install modules.
 ```
 $ python -m pip install -r requirements.txt
 ```
+
+## Steps
+
+1. Train Japanese Tokeniezr
+2. Merge Japanese Tokenizer into LLaMa Tokenizer
+3. LoRA incremental training using Japanese Tokenizer
+4. Finetune with Japanese dataset(e.g. Alpaca)
+
+### Train Japanese Tokenizer
+
+See 
+
+cc100 ja で日本語 tokenizer を huggingface tokenizers で train するメモ
+https://zenn.dev/syoyo/articles/8647ae42a3be63
+
+for details(in Japanese)
+
+Train Japanese Tokenizer from cc100 ja.
+
+It will download 40 GB of cc100 ja datset(75 GB uncompressed).
+
+`train_jp_tokenizer.py`
+
+128 GB CPU memory is required to train Japanese Tokenizer.
+After downloading
+
+### Merge Japanese Tokenizer vocab into LLaMa tokenizer 
+
+T.B.W.
+
+### Incremental training using Japanese Tokenizer.
+
+This step take a time to train.
+
+T.B.W.
+
+
+### Finetune with Japanese dataset(e.g. Alpaca)
+
+T.B.W.
+
+## TODO
+
+* [ ] Normalize text(e.g. convert hankaku-kana to zenkaku-kana) when training Japanese Tokenizer?
 
 ## License
 
