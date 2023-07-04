@@ -10,3 +10,6 @@ transformers
 peft
 accelerate
 bitsandbytes
+ginza
+ja_ginza_electra
+evaluate

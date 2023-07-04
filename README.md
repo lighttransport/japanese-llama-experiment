@@ -6,6 +6,27 @@
 * Python 3.10+
   * Python 3.8+ may work.
 
+### To prepare Japanese dataset
+
+* KenLM
+
+```
+$ sudo apt install build-essential cmake libboost-system-dev libboost-thread-dev libboost-program-options-dev libboost-test-dev libeigen3-dev zlib1g-dev libbz2-dev liblzma-dev
+
+$ git clone https://github.com/kpu/kenlm
+$ cd kenlm
+$ mkdir build
+$ cd build
+$ cmake ..
+$ make
+```
+
+* sentencepiece(`spm_train`)
+
+```
+$ sudo apt install sentencepiece
+```
+
 ## Install
 
 Setup python environment using conda.
