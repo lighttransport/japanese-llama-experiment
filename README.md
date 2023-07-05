@@ -21,10 +21,16 @@ $ cmake ..
 $ make
 ```
 
-* sentencepiece(`spm_train`)
+* sentencepiece
 
 ```
 $ sudo apt install sentencepiece
+```
+
+* Download SentencePiece and KenLM pretrained model(for `ja` language)
+
+```
+$ bash download_lm.sh
 ```
 
 ## Install
@@ -94,4 +100,4 @@ Some scripts are licensed under Apache 2.0.
 ### Third party licenses
 
 Chinese LLaMa: Apache 2.0: https://github.com/ymcui/Chinese-LLaMA-Alpaca
-
+cc_net: MIT License https://github.com/facebookresearch/cc_net
