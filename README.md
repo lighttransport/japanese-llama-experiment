@@ -37,15 +37,20 @@ $ bash download_lm.sh
 
 Setup python environment using conda.
 
+We need to create two conda environment, since `spacy-transformers` module(used in `ginza` module) requires older `transformers` version, which does not support Llama class(fail to import LlamaTokenizer from transformers)
+
+
 ```
 $ conda create -n jp-llama-experiment python=3.10
 $ conda activate jp-llama-experiment
-```
-
-Install modules.
-
-```
 $ python -m pip install -r requirements.txt
+```
+
+```
+$ conda deactivate
+$ conda create -n jp-llama-experiment-nlp python=3.10
+$ conda activate jp-llama-experiment-nlp
+$ python -m pip install -r requirements-ja-nlp.txt
 ```
 
 ## Steps

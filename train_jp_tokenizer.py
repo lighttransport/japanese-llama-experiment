@@ -1,12 +1,14 @@
 # NOTE: 128 GB CPU mem is required.
 from tokenizers import Tokenizer
 from tokenizers.models import BPE
+from tokenizers import normalizers
 from tokenizers.trainers import BpeTrainer
 from tokenizers.pre_tokenizers import Whitespace
 from datasets import load_dataset
 
 tokenizer = Tokenizer(BPE(unk_token="[UNK]"))
 tokenizer.pre_tokenizer = Whitespace()
+tokenizer.normalizer = normalizers.NFKC()
 
 # TODO: Use [BOS], [EOS] instead of [CLS], [SEP]?
 # NOTE: Chinese LLaMa uses vocab_size=20000
