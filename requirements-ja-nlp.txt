@@ -3,4 +3,5 @@ scipy
 ginza
 ja_ginza_electra
 evaluate
-zstd
+#zstd
+zstandard

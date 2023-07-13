@@ -56,18 +56,21 @@ def remove_unicode_punct(text: str) -> str:
     return UNICODE_PUNCT_RE.sub("", text)
 
 
+# Reuse `strip_accents` for CJK text. Use NFKC
 def strip_accents(line: str) -> str:
     """Strips accents from a piece of text."""
-    nfd = unicodedata.normalize("NFD", line)
-    output = [c for c in nfd if unicodedata.category(c) != "Mn"]
+    #nfd = unicodedata.normalize("NFD", line)
+    nkfc = unicodedata.normalize("NFKC", line)
+    output = [c for c in nkfc if unicodedata.category(c) != "Mn"]
     if len(output) == line:
         return line
     return "".join(output)
 
 
 # Build a regex matching all control characters.
+# newline(LF, 10) has meaningful infor in CJK text, so do not remove it.
 NON_PRINTING_CHARS_RE = re.compile(
-    f"[{''.join(map(chr, list(range(0,32)) + list(range(127,160))))}]"
+    f"[{''.join(map(chr, list(range(0,10)) + list(range(11, 32)) + list(range(127,160))))}]"
 )
 DIGIT_RE = re.compile(r"\d")
 PUNCT_OR_NON_PRINTING_CHARS_RE = re.compile(
@@ -161,6 +164,8 @@ def normalize(line: str, accent=True, case=True, numbers=True, punct=1) -> str:
         return line
     if case:
         line = line.lower()
+
+    # FIXME: Always apply NKFC normalization for CJK text.
     if accent:
         line = strip_accents(line)
     if numbers:
