@@ -5,11 +5,15 @@ import unicodedata
 import glob
 import os
 from pathlib import Path
+import hashlib
+import concurrent.futures
 
 import zstandard
 import text_normalizer
 
 zstd_comp_level = 4 # default = 3
+
+# TODO: hash check
 
 mc4_glob_pattern = "/mnt/disk01/work/c4/multilingual/c4-ja.tfrecord-{:05d}-of-01024.json.gz"
 dst_mc4_path = Path("../data/01_normalized/mc4")
@@ -17,33 +21,19 @@ dst_mc4_path = Path("../data/01_normalized/mc4")
 # Create directory if not exists.
 os.makedirs(dst_mc4_path, exist_ok=True)
 
-#files = glob.glob(mc4_glob_pattern)
+nprocesses = 6
 
-offset = 0
-n = 10
 
-if len(sys.argv) > 2:
-    offset = int(sys.argv[1])
-    n = int(sys.argv[2])
-
-    assert offset >= 0
-    assert offset < 1024
-    assert n > 0
-
-assert (offset + n) < 1024
-
-for i in range(n):
-    idx = offset + i
-    
-    filepath = mc4_glob_pattern.format(idx)
+def worker(filepath):
     print("Processing ", filepath)
+
     f = gzip.open(filepath, 'rb')
-    lines=f.readlines()
-    f.close()
+    line=f.readline()
 
     dst_lines = []
 
-    for line in lines:
+    while line:
+
         j = json.loads(line)
 
         # Simple version NFKC
@@ -53,6 +43,10 @@ for i in range(n):
         j["text"] = text_normalizer.normalize(j["text"])
 
         dst_lines.append(json.dumps(j, ensure_ascii=False))
+
+        line = f.readline()
+
+    f.close()
 
     #print(lines[0])
 
@@ -70,4 +64,27 @@ for i in range(n):
     of.write(zcompressed)
     of.close()
 
-    
+#
+# - main
+# 
+offset = 0
+n = 1024
+
+if len(sys.argv) > 2:
+    offset = int(sys.argv[1])
+    n = int(sys.argv[2])
+
+    assert offset >= 0
+    assert offset < 1024
+    assert n > 0
+
+assert (offset + n) <= 1024
+
+inputfiles = []
+for i in range(n):
+    idx = offset + i
+    filepath = mc4_glob_pattern.format(idx)
+    inputfiles.append(filepath)
+
+with concurrent.futures.ProcessPoolExecutor(max_workers=nprocesses) as executor:
+    executor.map(worker, inputfiles)
