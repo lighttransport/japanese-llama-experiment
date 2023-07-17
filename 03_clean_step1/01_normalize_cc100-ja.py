@@ -160,7 +160,9 @@ for i in range(n):
     filepath = cc100ja_glob_pattern.format(idx+1)
     inputfiles.append(filepath)
 
-#with concurrent.futures.ProcessPoolExecutor(max_workers=nprocesses) as executor:
-#    executor.map(worker, inputfiles)
+# test
+# worker(inputfiles[0])
 
-worker(inputfiles[0])
+with concurrent.futures.ProcessPoolExecutor(max_workers=nprocesses) as executor:
+    executor.map(worker, inputfiles)
+
