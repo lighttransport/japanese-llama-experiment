@@ -208,9 +208,9 @@ if __name__ == "__main__":
         inputfiles.append(filepath)
 
     ## test
-    res = worker(inputfiles[0])
-    print(res)
-    sys.exit(-1)
+    #res = worker(inputfiles[0])
+    #print(res)
+    #sys.exit(-1)
 
     def handler(signum, frame):
 
