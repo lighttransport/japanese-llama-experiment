@@ -1,13 +1,15 @@
 import spacy
 nlp = spacy.load('ja_ginza_electra')
 
-def do_jp_sentence(text):
+def do_jp_sentence_check(text):
 
     doc = nlp(text)
 
     res = []
 
     for sent in doc.sents:
+        if sent.text == '\n':
+            continue
 
         # https://ja.wikipedia.org/wiki/%E5%93%81%E8%A9%9E
 
@@ -23,7 +25,9 @@ def do_jp_sentence(text):
 
         for token in sent:
 
-            if not token.pos_:
+            if token.pos_ == 'AUX':
+                pass
+            else:
                 all_aux = False
 
             if token.pos_ == 'ADP':
@@ -38,7 +42,13 @@ def do_jp_sentence(text):
 
         if (not has_adp) or (not has_aux):
             #remove
+            #print("remove", sent)
             pass
         else:
-            print(sent)
+            res.append(sent.text)
 
+
+    if len(res) == 0:
+        return None
+
+    return res
