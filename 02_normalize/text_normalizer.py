@@ -158,7 +158,8 @@ def normalize_spacing_for_tok(text: str, language: str = "en") -> str:
     return res
 
 
-def normalize(line: str, accent=True, case=True, numbers=True, punct=1) -> str:
+# NOTE accent=True will do NFKC normalization
+def normalize(line: str, accent=True, case=False, numbers=False, punct=1) -> str:
     line = line.strip()
     if not line:
         return line

@@ -16,3 +16,4 @@ evaluate
 #zstd
 zstandard
 tld
+tqdm
