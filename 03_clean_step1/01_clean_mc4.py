@@ -82,6 +82,10 @@ def do_clean(text: str):
             pass
         elif sent.endswith("?"):
             pass
+        elif sent.endswith("\""):
+            pass
+        elif sent.endswith("'"):
+            pass
         elif sent.endswith(","):
             continue
         else:

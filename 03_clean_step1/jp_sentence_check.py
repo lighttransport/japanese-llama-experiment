@@ -1,7 +1,7 @@
-import spacy
-nlp = spacy.load('ja_ginza_electra')
+#import spacy
+#nlp = spacy.load('ja_ginza_electra')
 
-def do_jp_sentence_check(text):
+def do_jp_sentence_check(text, nlp):
 
     doc = nlp(text)
 

@@ -13,9 +13,7 @@ def count_whitespaces(text):
     return c
 
 
-def do_clean(text: str):
-
-    ws_threshold = 1
+def do_clean(text: str, ws_threshold=1):
 
     # 1. skip text if it does not contain any hiragana.
     if not contains_hiragana(text):
@@ -41,6 +39,10 @@ def do_clean(text: str):
         elif sent.endswith("?"):
             pass
         elif sent.endswith(","):
+            continue
+        elif sent.endswith("\""):
+            continue
+        elif sent.endswith("'"):
             continue
         else:
             # assume sentence is broken.
