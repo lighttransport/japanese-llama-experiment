@@ -6,3 +6,4 @@ evaluate
 #zstd
 zstandard
 tqdm
+bunkai

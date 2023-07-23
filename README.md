@@ -10,15 +10,15 @@
 
 * KenLM
 
+Build and install python module.
+
 ```
 $ sudo apt install build-essential cmake libboost-system-dev libboost-thread-dev libboost-program-options-dev libboost-test-dev libeigen3-dev zlib1g-dev libbz2-dev liblzma-dev
 
 $ git clone https://github.com/kpu/kenlm
 $ cd kenlm
-$ mkdir build
-$ cd build
-$ cmake ..
-$ make
+$ python setup.py bdist_wheel
+$ python -m pip install -U dist/kenlm*.whl
 ```
 
 * sentencepiece
