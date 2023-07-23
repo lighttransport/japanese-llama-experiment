@@ -29,7 +29,6 @@ def do_jp_text_check(text, tokenizer_obj):
     for token in tokens:
 
         pos = token.part_of_speech()
-        print(pos)
         if pos[0] == '助詞':
             pass
         else:
@@ -51,10 +50,10 @@ def do_jp_text_check(text, tokenizer_obj):
     return text
 
 if __name__ == '__main__':
-    tokenizer_obj = dictionary.Dictionary().create()
 
     text = '東京は晴れ. 吾輩は猫である. 名前はまだない? 東京第一. 東京は晴れてい'
 
+    tokenizer_obj = dictionary.Dictionary().create()
     bunkai = Bunkai()
 
     sentences = bunkai(text)

@@ -6,7 +6,7 @@ import os
 import hashlib
 from pathlib import Path
 
-import ginza
+#import ginza
 import zstandard
 #import text_normalizer
 import url_filtering
@@ -14,11 +14,19 @@ import ascii_filtering
 import clean_text
 import jp_sentence_check
 
+from bunkai import Bunkai
+
+from sudachipy import tokenizer
+from sudachipy import dictionary
+
 # Disable nlp since its too slow.
 #import spacy
 #nlp = spacy.load('ja_ginza_electra')
 
 zstd_comp_level = 4 # default = 3
+
+tokenizer_obj = dictionary.Dictionary().create()
+bunkai = Bunkai()
 
 def char_is_hiragana(c):
     return u'\u3040' <= c <= u'\u309F'
@@ -34,6 +42,38 @@ def count_whitespaces(text):
 
     return c
 
+def do_clean_sudachi(text: str):
+
+    ws_threshold = 2
+
+    # 1. skip text if it does not contain any hiragana.
+    if not contains_hiragana(text):
+        return None
+
+    # 2. Use bunkai to decompose text into sentences.
+    sentences = bunkai(text)
+
+    results = []
+
+    #print("sentences:", sentences)
+    for sent in sentences:
+        # 1. remove if the sentence contains some whitespaces
+        if count_whitespaces(sent) >= ws_threshold:
+            continue
+        elif sent.endswith("..."):
+            continue
+
+        # limit nlp analysis up to 1024 chars.
+        sent = jp_sentence_check.do_jp_text_check(sent, tokenizer_obj)
+        if sent is None:
+            continue
+
+        results.append(sent)
+
+    if len(results) == 0:
+        return None
+
+    return "\\n".join(results)
 
 def do_clean(text: str):
 
@@ -106,14 +146,14 @@ def do_filter(line):
     if ascii_filtering.filter_ascii(j["text"]):
         return None
 
-    # cc_net compatible version. apply NFKC normalization also. 
-    j["text"] = do_clean(j["text"])
+    j["text"] = do_clean_sudachi(j["text"])
     if j["text"] is None:
         return None
 
     return j
 
 def worker(in_filepath, out_filepath):
+
 
     print(in_filepath)
 
@@ -134,13 +174,16 @@ def worker(in_filepath, out_filepath):
     nlines = len(lines)
 
     results = []
+    nfiltered = 0
     for i, line in enumerate(lines):
-        if (i % 10) == 0:
-            print("Processed {} / {}\n".format(i, nlines))
+        if (i % 100) == 0:
+            print("Processed {} / {} (completely filtered {})\n".format(i, nlines, nfiltered))
             
         ret = do_filter(line)
         if ret:
             dst_lines.append(json.dumps(ret, ensure_ascii=False))
+        else:
+            nfiltered += 1
 
 
     del lines

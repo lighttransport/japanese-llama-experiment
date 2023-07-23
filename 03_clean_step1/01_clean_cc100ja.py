@@ -13,7 +13,7 @@ nfiles = 1001
 cc100ja_glob_pattern = "../data/01_normalized/cc100ja/cc100-ja.{:05d}.jsonl.zstd"
 dst_cc100ja_path = Path("../data/02_clean_step1/cc100ja")
 
-nprocesses = 10
+nprocesses = 12
 
 #checksums = {}
 #with open(checksumfile, "r") as f:
