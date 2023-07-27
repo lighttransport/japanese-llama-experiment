@@ -57,14 +57,17 @@ def do_clean_sudachi(text: str):
 
     #print("sentences:", sentences)
     for sent in sentences:
+
+        sent = sent.lstrip('\\n')
+
         # 1. remove if the sentence contains some whitespaces
-        if count_whitespaces(sent) >= ws_threshold:
+        if count_whitespaces(text) >= ws_threshold:
             continue
         elif sent.endswith("..."):
+            # TODO: try to concat with next line?
             continue
 
-        # limit nlp analysis up to 1024 chars.
-        sent = jp_sentence_check.do_jp_text_check(sent, tokenizer_obj)
+        sent = jp_sentence_check.do_jp_text_check(text, tokenizer_obj)
         if sent is None:
             continue
 

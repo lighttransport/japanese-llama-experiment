@@ -33,7 +33,7 @@ os.makedirs(dst_cc100ja_path, exist_ok=True)
 
 #files = glob.glob(mc4_glob_pattern)
 
-nprocesses = 3
+nprocesses = 8
 
 def worker(filepath):
 
@@ -116,8 +116,7 @@ inputfiles = []
 for i in range(n):
     idx = offset + i
     
-    # starts with 1.
-    filepath = cc100ja_glob_pattern.format(idx+1)
+    filepath = cc100ja_glob_pattern.format(idx)
     inputfiles.append(filepath)
 
 with concurrent.futures.ProcessPoolExecutor(max_workers=nprocesses) as executor:

@@ -7,3 +7,5 @@ evaluate
 zstandard
 tqdm
 bunkai
+datasketch
+sudachipy

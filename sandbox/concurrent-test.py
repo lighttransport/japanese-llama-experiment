@@ -3,12 +3,24 @@ import time
 import concurrent.futures
 import signal
 
+interrupted = False
+
 def handler(signum, frame):
+    global interrupted
+
     # Gracefull shutfown
     print('Signal handler called with signal', signum)
-    sys.exit(-1)
+    interrupted = True
+    #sys.exit(-1)
 
 def worker(fname):
+
+    global interrupted
+
+    if interrupted:
+        print("interrupted")
+        return None
+
     print(fname)
     #time.a(4)
     time.sleep(5)
