@@ -55,10 +55,20 @@ $ python -m pip install -r requirements-ja-nlp.txt
 
 ## Steps
 
+0. Download datasets.
 1. Train Japanese Tokeniezr
 2. Merge Japanese Tokenizer into LLaMa Tokenizer
 3. LoRA incremental training using Japanese Tokenizer
 4. Finetune with Japanese dataset(e.g. Alpaca)
+
+### Download datasets
+
+This is a required stop to train Tokenier, build KenLM model, etc.
+
+* cc100ja
+* wiki40b/ja
+
+See `00_download_dataset` for details.
 
 ### Train Japanese Tokenizer
 
