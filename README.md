@@ -1,5 +1,14 @@
 # Japanese LLaMa experiment.
 
+Japanese version [README-ja.md](README-ja.md)
+
+## Status
+
+* [x] Japanese dataset pre-cleaning
+* [ ] Japanese dataset quality filtering & dedup
+* [ ] Incremental pre-training
+* [ ] Fine-tuning with Japanese finetuning dataset.
+
 ## Requirements
 
 * (Mini)conda

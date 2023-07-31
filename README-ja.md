@@ -1,4 +1,6 @@
-# 日本語 LLaMa 追加学習のためのスクリプト
+# 日本語 LLaMa 追加学習のための日本語データセット構築と追加事前学習チャレンジ
+
+Chinese LLaMa を参考に, Japanese LLaMa の追加事前学習のチャレンジをするスクリプト集です.
 
 * 日本語データセット構築(クリーニングと dedup(重複除去))
   * NN G tokens 規模(T.B.D.)
@@ -6,6 +8,14 @@
   * Chinese LLaMa を参考にしています https://github.com/ymcui/Chinese-LLaMA-Alpaca
 
 の二本立てで構成されています.
+
+## Status
+
+* [x] 日本語データセットの pre cleaning
+* [ ] 品質スコアリング計算と dedup
+* [ ] 日本語トークナイザ学習
+* [ ] 日本語トークナイザで追加事前学習
+* [ ] 日本語ファインチューニングデータセットでファインチューニング(Alpaca など)
 
 ## 背景
 
@@ -66,7 +76,9 @@ dedup 後にひとつの jsonl + zstd のセットにまとめます.
     * 処理時間がかかるためほかのデータセットでは使っていない
     * TODO: jaggar なりの高速形態素解析ライブラリを使う.
 * [ ] `04_lm_scoring/` KenLM による品質スコアリング
+  * KenLM で日本語文章の品質スコアリングを行うメモ https://zenn.dev/syoyo/articles/529ce949121ca4
 * [ ] `05_dedup` MinHash での fuzzy dedup および suffix array による exact dedup で重複除去
+  * LLM 向け MinHash でテキストの重複除去のメモ https://zenn.dev/syoyo/articles/06eaeb88963b08 
 
 ## 日本語トークナイザ作成
 
