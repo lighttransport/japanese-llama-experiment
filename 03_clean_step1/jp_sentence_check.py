@@ -1,6 +1,3 @@
-#import spacy
-#nlp = spacy.load('ja_ginza_electra')
-
 from bunkai import Bunkai
 
 from sudachipy import tokenizer
