@@ -13,5 +13,7 @@ bitsandbytes
 #ginza
 #ja_ginza_electra
 evaluate
-zstd
-trafilatura
+#zstd
+zstandard
+tld
+tqdm

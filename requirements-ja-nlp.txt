@@ -3,5 +3,11 @@ scipy
 ginza
 ja_ginza_electra
 evaluate
-zstd
 text-dedup
+#zstd
+zstandard
+tqdm
+bunkai
+datasketch
+sudachipy
+fugashi

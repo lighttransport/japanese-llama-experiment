@@ -1,5 +1,14 @@
 # Japanese LLaMa experiment.
 
+Japanese version [README-ja.md](README-ja.md)
+
+## Status
+
+* [x] Japanese dataset pre-cleaning
+* [ ] Japanese dataset quality filtering & dedup
+* [ ] Incremental pre-training
+* [ ] Fine-tuning with Japanese finetuning dataset.
+
 ## Requirements
 
 * (Mini)conda
@@ -10,15 +19,15 @@
 
 * KenLM
 
+Build and install python module.
+
 ```
 $ sudo apt install build-essential cmake libboost-system-dev libboost-thread-dev libboost-program-options-dev libboost-test-dev libeigen3-dev zlib1g-dev libbz2-dev liblzma-dev
 
 $ git clone https://github.com/kpu/kenlm
 $ cd kenlm
-$ mkdir build
-$ cd build
-$ cmake ..
-$ make
+$ python setup.py bdist_wheel
+$ python -m pip install -U dist/kenlm*.whl
 ```
 
 * sentencepiece
@@ -55,14 +64,35 @@ $ python -m pip install -r requirements-ja-nlp.txt
 
 ## Steps
 
+0. Download datasets.
+1. Run dataset cleaner
 1. Train Japanese Tokeniezr
 2. Merge Japanese Tokenizer into LLaMa Tokenizer
 3. LoRA incremental training using Japanese Tokenizer
 4. Finetune with Japanese dataset(e.g. Alpaca)
 
+### Download datasets
+
+This is a required stop to train Tokenier, build KenLM model, etc.
+
+* cc100ja
+* mc4 ja
+* OSCAR2301 ja
+* wiki40b/ja
+
+See `00_download_dataset` for details.
+
+### Run dataset cleaner
+
+* [x] `01_prepare_dataset`
+* [x] `02_normalize/`
+* [x] `03_clean_step1/`
+* [ ] `04_lm_scoring/`
+* [ ] `05_dedup/`
+
 ### Train Japanese Tokenizer
 
-See 
+W.I.P.
 
 cc100 ja で日本語 tokenizer を huggingface tokenizers で train するメモ
 https://zenn.dev/syoyo/articles/8647ae42a3be63
@@ -95,12 +125,12 @@ T.B.W.
 
 ## TODO
 
-* [ ] Normalize text(e.g. convert hankaku-kana to zenkaku-kana) when training Japanese Tokenizer?
+T.B.W.
 
 ## License
 
-MIT license unless licensing terms is explicitly denoted.
-Some scripts are licensed under Apache 2.0.
+MIT license unless licensing terms is not explicitly denoted.
+Some scripts are licensed under Apache 2.0 or BSD.
 
 ### Third party licenses
 
