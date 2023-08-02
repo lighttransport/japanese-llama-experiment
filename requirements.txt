@@ -14,3 +14,4 @@ bitsandbytes
 #ja_ginza_electra
 evaluate
 zstd
+trafilatura

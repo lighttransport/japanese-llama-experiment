@@ -4,3 +4,4 @@ ginza
 ja_ginza_electra
 evaluate
 zstd
+text-dedup
