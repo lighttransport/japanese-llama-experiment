@@ -1,3 +1,6 @@
 [submodule "third_party/zstd"]
 	path = third_party/zstd
 	url = https://github.com/facebook/zstd
+[submodule "third_party/utf8proc"]
+	path = third_party/utf8proc
+	url = https://github.com/JuliaStrings/utf8proc
