@@ -5,7 +5,8 @@ Japanese version [README-ja.md](README-ja.md)
 ## Status
 
 * [x] Japanese dataset pre-cleaning
-* [ ] Japanese dataset quality filtering & dedup
+* [ ] Japanese dataset quality filtering
+* [ ] Japanese dataset dedup
 * [ ] Incremental pre-training
 * [ ] Fine-tuning with Japanese finetuning dataset.
 
