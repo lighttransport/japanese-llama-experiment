@@ -83,7 +83,7 @@ This is a required stop to train Tokenier, build KenLM model, etc.
 
 See `00_download_dataset` for details.
 
-### Run dataset cleaner
+### Run dataset cleaner & dedup
 
 * [x] `01_prepare_dataset`
 * [x] `02_normalize/`
