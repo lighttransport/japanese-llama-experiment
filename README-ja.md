@@ -1,4 +1,4 @@
-# 日本語 LLaMa 追加学習のための日本語データセット構築と追加事前学習チャレンジ
+# 日本語 LLaMa 追加学習のための日本語データセット(日本語コーパス)構築と追加事前学習チャレンジ
 
 Chinese LLaMa を参考に, Japanese LLaMa の追加事前学習のチャレンジをするスクリプト集です.
 
@@ -40,6 +40,17 @@ nlp 処理でライブラリのバージョンなどがかち合うため, 2 つ
 `python -m pip install -r requirements-ja-nlp.txt`
 
 で環境構築します.
+
+## Setup
+
+
+https://github.com/lighttransport/data-for-japanese-corpus
+
+にデータセット構築用の各種学習済みモデル(e.g. KenML)があります.
+
+```
+$ git clone https://github.com/lighttransport/data-for-japanese-corpus
+```
 
 ## クリーニング済み日本語データセット構築
 
