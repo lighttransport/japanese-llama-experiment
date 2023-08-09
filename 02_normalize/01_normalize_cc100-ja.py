@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2023 - Present, Light Transport Entertainment Inc.
 import sys
 import gzip
 import json
