@@ -10,4 +10,4 @@ tqdm
 bunkai
 datasketch
 sudachipy
-fugashi
+fugashi[unidic]
