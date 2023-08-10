@@ -5,7 +5,8 @@ Japanese version [README-ja.md](README-ja.md)
 ## Status
 
 * [x] Japanese dataset pre-cleaning
-* [ ] Japanese dataset quality filtering & dedup
+* [ ] Japanese dataset quality filtering
+* [ ] Japanese dataset dedup
 * [ ] Incremental pre-training
 * [ ] Fine-tuning with Japanese finetuning dataset.
 
@@ -82,7 +83,7 @@ This is a required stop to train Tokenier, build KenLM model, etc.
 
 See `00_download_dataset` for details.
 
-### Run dataset cleaner
+### Run dataset cleaner & dedup
 
 * [x] `01_prepare_dataset`
 * [x] `02_normalize/`
@@ -136,3 +137,4 @@ Some scripts are licensed under Apache 2.0 or BSD.
 
 Chinese LLaMa: Apache 2.0: https://github.com/ymcui/Chinese-LLaMA-Alpaca
 cc_net: MIT License https://github.com/facebookresearch/cc_net
+utf8proc: MIT license + permissive Unicode data license https://github.com/JuliaStrings/utf8proc

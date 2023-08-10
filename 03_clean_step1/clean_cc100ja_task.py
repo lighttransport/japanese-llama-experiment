@@ -42,16 +42,16 @@ def count_whitespaces(text):
 
     return c
 
-def do_clean_sudachi(text: str):
+def do_clean_sudachi(_text: str):
 
-    ws_threshold = 2
+    ws_threshold = 3
 
     # 1. skip text if it does not contain any hiragana.
-    if not contains_hiragana(text):
+    if not contains_hiragana(_text):
         return None
 
     # 2. Use bunkai to decompose text into sentences.
-    sentences = bunkai(text)
+    sentences = bunkai(_text)
 
     results = []
 
@@ -61,13 +61,13 @@ def do_clean_sudachi(text: str):
         sent = sent.lstrip('\\n')
 
         # 1. remove if the sentence contains some whitespaces
-        if count_whitespaces(text) >= ws_threshold:
+        if count_whitespaces(sent) >= ws_threshold:
             continue
         elif sent.endswith("..."):
             # TODO: try to concat with next line?
             continue
 
-        sent = jp_sentence_check.do_jp_text_check(text, tokenizer_obj)
+        sent = jp_sentence_check.do_jp_text_check(sent, tokenizer_obj)
         if sent is None:
             continue
 
@@ -78,9 +78,10 @@ def do_clean_sudachi(text: str):
 
     return "\\n".join(results)
 
+
 def do_clean(text: str):
 
-    ws_threshold = 1
+    ws_threshold = 3
 
     # 1. skip text if it does not contain any hiragana.
     if not contains_hiragana(text):

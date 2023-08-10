@@ -6,6 +6,11 @@ from sudachipy import dictionary
 
 def do_jp_text_check(text, tokenizer_obj):
 
+    if len(text) > 48000:
+        # Sudachi cannot tokenize 49149 bytes or more input
+        # Use 48000 to consider the margin
+        return text
+
     tokens = tokenizer_obj.tokenize(text)
 
     res = None
