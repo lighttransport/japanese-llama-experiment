@@ -18,8 +18,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CPP_SOURCES
   main.cc
+  jagger.cc
   )
 
+add_subdirectory(${PROJECT_SOURCE_DIR}/../third_party/simdjson simdjson)
+
 add_executable(${PROJECT_NAME} ${CPP_SOURCES})
-target_link_libraries(${PROJECT_NAME} PUBLIC zstd::zstd)
+target_link_libraries(${PROJECT_NAME} PUBLIC zstd::zstd simdjson)
 add_sanitizers(${PROJECT_NAME})
+

@@ -1,7 +1,12 @@
+#include <vector>
+#include <string>
+#include <iostream>
+
 #include <zstd.h>
 #include "common.h" // from zstd example
+#include <simdjson.h>
 
-static void decompress(const char* fname)
+static std::string decompress(const char* fname)
 {
     size_t cSize;
     void* const cBuff = mallocAndLoadFile_orDie(fname, &cSize);
@@ -30,12 +35,53 @@ static void decompress(const char* fname)
     /* success */
     printf("%25s : %6u -> %7u \n", fname, (unsigned)cSize, (unsigned)rSize);
 
+    // assume decoded data is utf-8 string.
+    std::string buf(reinterpret_cast<const char *>(rBuff), dSize);
+
     free(rBuff);
     free(cBuff);
+
+    return buf;
 }
 
-int main(int argc, char **argv) {
-	return 0;
+std::vector<std::string> split_lines(const std::string &s) {
 
-	decompress(argv[1]);
+  std::vector<std::string> dst;
+
+  size_t s_begin = 0;
+  size_t s_end = 0;
+
+  for (size_t i = 0; i < s.size(); i++) {
+    if (s[i] == '\n') {
+        s_end = i;
+        dst.push_back(s.substr(s_begin, s_end - s_begin));
+        s_begin = i + 1;
+    }
+
+  }
+
+  return dst;
+}
+
+using namespace simdjson;
+
+int main(int argc, char **argv) {
+
+  if (argc < 3) {
+    std::cout << "Need input.jsonl.zstd output.jsonl.zstd\n";
+    return -1;
+  }
+
+	std::string jsonl = decompress(argv[1]);
+
+  std::vector<std::string> jsons = split_lines(jsonl);
+
+
+  ondemand::parser parser;
+  for (size_t i = 0; i < jsons.size(); i++) {
+    padded_string json = padded_string(jsons[i]);
+    ondemand::document j = parser.iterate(json);
+  }
+
+
 }
