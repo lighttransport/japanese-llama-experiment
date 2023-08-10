@@ -109,7 +109,7 @@ It will download 40 GB of cc100 ja datset(75 GB uncompressed).
 128 GB CPU memory is required to train Japanese Tokenizer.
 After downloading
 
-### Merge Japanese Tokenizer vocab into LLaMa tokenizer 
+### Merge Japanese Tokenizer vocab into LLaMa tokenizer
 
 T.B.W.
 
@@ -138,3 +138,4 @@ Some scripts are licensed under Apache 2.0 or BSD.
 Chinese LLaMa: Apache 2.0: https://github.com/ymcui/Chinese-LLaMA-Alpaca
 cc_net: MIT License https://github.com/facebookresearch/cc_net
 utf8proc: MIT license + permissive Unicode data license https://github.com/JuliaStrings/utf8proc
+jagger: We choose BSD license. https://www.tkl.iis.u-tokyo.ac.jp/~ynaga/jagger/
