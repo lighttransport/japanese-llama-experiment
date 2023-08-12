@@ -1,0 +1,3 @@
+wget https://dumps.wikimedia.org/jawiki/latest/jawiki-latest-pages-articles.xml.bz2
+wget https://raw.githubusercontent.com/apertium/WikiExtractor/master/WikiExtractor.py
+python WikiExtractor.py --infn jawiki-latest-pages-articles.xml.bz2
