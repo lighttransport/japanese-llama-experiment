@@ -209,22 +209,26 @@ if __name__ == "__main__":  # pragma: no cover
 
     with timer("Total"):
         with timer("Loading"):
-            if args.local:
-                ds = load_from_disk(args.path)
-            else:
-                ds = load_dataset(
-                    path=args.path,
-                    name=args.name,
-                    data_dir=args.data_dir,
-                    data_files=args.data_files,
-                    split=args.split,
-                    revision=args.revision,
-                    cache_dir=args.cache_dir,
-                    num_proc=os.cpu_count(),
-                    token=args.use_auth_token,
-                )
+            #if args.local:
+            #    ds = load_from_disk(args.path)
+            #else:
+            #    ds = load_dataset(
+            #        path=args.path,
+            #        name=args.name,
+            #        data_dir=args.data_dir,
+            #        data_files=args.data_files,
+            #        split=args.split,
+            #        revision=args.revision,
+            #        cache_dir=args.cache_dir,
+            #        num_proc=os.cpu_count(),
+            #        token=args.use_auth_token,
+            #    )
+
+            # json[]
+            ds = load_file(args.file)
 
         DATA_SIZE = len(ds)
+        print("# of items:", DATA_SIZE)
         PERMUTATIONS: np.ndarray = np.array(
             [
                 (

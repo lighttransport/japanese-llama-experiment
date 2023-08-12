@@ -10,14 +10,17 @@ import zstandard
 
 zstd_comp_level = 5 # default = 3
 
+# HuggingFace datasets
+import datasets
+from datasets import Dataset
 
-#
-# TODO: stream interface
-#
 def load_file(filepath: Path):
+    """
+    load jsonl+zstd file and return as huggingface datasets
+    """
     dctx = zstandard.ZstdDecompressor()
     dobj = dctx.decompressobj()
-   
+
     with open(filepath, 'rb') as f:
         indata = f.read()
 
@@ -31,8 +34,21 @@ def load_file(filepath: Path):
         j = json.loads(line)
         jsons.append(j)
 
+    #
+    # Simple row to column conversion
+    #
+    keys = jsons[0].keys()
 
-    return jsons
+    d = {}
+    for k in keys:
+        d[k] = []
+
+        for i in range(len(jsons)):
+            d[k].append(jsons[i][k])
+
+
+    ds = Dataset.from_dict(d)
+    return ds
 
 
 def save_file(jsons, zfilepath: Path):
@@ -52,5 +68,5 @@ def save_file(jsons, zfilepath: Path):
     of = open(zfilename, 'wb')
     of.write(zcompressed)
     of.close()
-  
+
     return True
