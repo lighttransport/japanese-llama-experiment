@@ -47,6 +47,7 @@ from utils.hashfunc import xxh3_16hash
 from utils.hashfunc import xxh3_32hash
 from utils.timer import Timer
 from utils.data_load import load_file
+from utils.preprocess import normalize as normalize_for_dedup
 
 SEED = 42
 RNG = np.random.RandomState(SEED)
@@ -121,9 +122,11 @@ def embed_func(
     >>> res["__id__"]
     0
     """
+
+    normalized_content = normalize_for_dedup(content)
     a, b = permutations
     tokens: Set[bytes] = {
-        bytes(" ".join(t).lower(), "utf-8") for t in ngrams(NON_ALPHA.split(content), ngram_size, min_length)
+        bytes(" ".join(t).lower(), "utf-8") for t in ngrams(NON_ALPHA.split(normalized_content), ngram_size, min_length)
     }
 
     hashvalues: np.ndarray = np.array([hash_func(token) for token in tokens], dtype=dtype)
