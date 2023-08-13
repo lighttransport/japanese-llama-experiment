@@ -11,10 +11,20 @@ Chinese LLaMa を参考に, Japanese LLaMa の追加事前学習のチャレン�
 
 ## Status
 
-* [x] 日本語データセットの pre cleaning
-* [ ] 品質スコアリング計算と dedup
+* [x] データセットの取得 (00_download_dataset)[00_download_dataset]
+* [x] データセットの前処理 (01_prepare_dataset)[01_prepare_dataset]
+  * jsonl + zstd 形式への変換
+* [x] テキストの正規化 (02_normalize)[02_normalize]
+  * NFKC で正規化
+  * 句読点は現在「, .」. 「、。」にしたほうがいいか?
+* [x] 日本語データセットの pre cleaning (00_download_dataset/
+* [ ] 品質スコアリング計算 (04_lm_scoring)[04_lm_scoring]
+  * [ ] KenLM の Perplexity で品質を計算
+* [ ] dedup(重複除去) (05_dedup)[05_dedup]
+  * [ ] MinHash fuzzy dedup
+  * [ ] suffix array exact dedup
 * [ ] 日本語トークナイザ学習
-* [ ] 日本語トークナイザで追加事前学習
+* [ ] 日本語トークナイザとクリーニングした日本語データセットで追加事前学習(incremental pre-training)
 * [ ] 日本語ファインチューニングデータセットでファインチューニング(Alpaca など)
 
 ## 背景
@@ -60,7 +70,7 @@ https://huggingface.co/datasets/lighttransport/japanese-dataset-cleaned-experime
 
 (現在 public 公開にするためにライセンス関連リーガルチェック中)
 
-本 repo のスクリプトでは, 
+本 repo のスクリプトでは,
 
 * cc100ja
 * mc4 ja
@@ -89,7 +99,27 @@ dedup 後にひとつの jsonl + zstd のセットにまとめます.
 * [ ] `04_lm_scoring/` KenLM による品質スコアリング
   * KenLM で日本語文章の品質スコアリングを行うメモ https://zenn.dev/syoyo/articles/529ce949121ca4
 * [ ] `05_dedup` MinHash での fuzzy dedup および suffix array による exact dedup で重複除去
-  * LLM 向け MinHash でテキストの重複除去のメモ https://zenn.dev/syoyo/articles/06eaeb88963b08 
+  * LLM 向け MinHash でテキストの重複除去のメモ https://zenn.dev/syoyo/articles/06eaeb88963b08
+
+## 正規化
+
+NFKC 形式(sentencepiece の normalizer のデフォルト?)で正規化します.
+NFKC は日本語の正規化でよく使われる形式のようです.
+たとえば Rinna はトークナイザを見る限りでは NFKC で正規化をしています.
+
+しかし, LLaMa1 では NFD が利用されているようです.
+(cc_net の text_normalizer)
+
+NFD ですと, 日本語では「が」が「か　”」などと濁点が分解されてしまい, 日本語との相性がよくないと思われます.
+
+ただ, 日本語データセットには英語はあまり含まれていないため, NFC 正規化した英語データセットでの事前学習にたいして, NFKC 正規化で日本語(英語少しふくむ)データセットで追加事前学習してもトークン表現などが異なり学習の精度が落ちることは無いと思います.
+(=> 本来は, 日本語を NFC で正規化したのでどうなるか比較するのがよいが...)
+
+幸いにも, SlimPajama などの LLaMa の open 再現では NFC を使っています(たとえば, 濁点は分解されない).
+(llama2 はどうなっているか不明)
+
+したがって, SlimPajama データセットで学習したモデルにたいして, NFKC で正規化した日本語データセットで追加事前学習するのは大丈夫と言えそうです.
+
 
 ## 日本語トークナイザ作成
 
@@ -103,7 +133,7 @@ T.B.W.
 
 * 追加学習ではなく, SlimPajama と組み合わせ一から事前学習する
   * => あとから日本語知識を付け足すよりは性能がよくなるはず...(学習のコストはかかるが)
- 
+
 ## License
 
 MIT or Apache 2.0.
