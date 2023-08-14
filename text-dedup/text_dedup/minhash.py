@@ -1,10 +1,10 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python # -*- coding: utf-8 -*-
 # author      : Chenghao Mou (mouchenghao@gmail.com)
 # created     : 10/4/22
 # Modification : Light Transport Entertainment, Inc.
 from __future__ import annotations
 
+from io import BytesIO, StringIO
 import argparse
 import gc
 import multiprocessing as mp
@@ -26,8 +26,14 @@ import logging
 
 logger = logging.getLogger("text_dedup")
 logger.setLevel(logging.INFO)
+
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+
+logger.addHandler(ch)
+
 #logger.addHandler(RichHandler(rich_tracebacks=True))
-logger.propagate = False
+#logger.propagate = False
 
 #import datasets
 import numpy as np
@@ -46,13 +52,17 @@ from utils.hashfunc import sha1_hash
 from utils.hashfunc import xxh3_16hash
 from utils.hashfunc import xxh3_32hash
 from utils.timer import Timer
-from utils.data_load import load_file
+from utils.data_loadsave import load_json_files, load_file, save_file
+from utils.preprocess import normalize as normalize_for_dedup
 
 SEED = 42
 RNG = np.random.RandomState(SEED)
 NON_ALPHA = re.compile("\W", re.UNICODE)
 #datasets.logging.set_verbosity_error()
 
+
+def get_nprocs():
+    return min(os.cpu_count()//4, 8)
 
 def embed_func(
     content: str,
@@ -121,10 +131,15 @@ def embed_func(
     >>> res["__id__"]
     0
     """
+
+    normalized_content = normalize_for_dedup(content)
+    #normalized_content = content
     a, b = permutations
     tokens: Set[bytes] = {
-        bytes(" ".join(t).lower(), "utf-8") for t in ngrams(NON_ALPHA.split(content), ngram_size, min_length)
+        bytes(" ".join(t).lower(), "utf-8") for t in ngrams(NON_ALPHA.split(normalized_content), ngram_size, min_length)
     }
+    for tok in tokens:
+        print(tok.decode('utf-8'))
 
     hashvalues: np.ndarray = np.array([hash_func(token) for token in tokens], dtype=dtype)
     # Permute the hash values to produce new universal hashes
@@ -209,22 +224,30 @@ if __name__ == "__main__":  # pragma: no cover
 
     with timer("Total"):
         with timer("Loading"):
-            if args.local:
-                ds = load_from_disk(args.path)
+            #if args.local:
+            #    ds = load_from_disk(args.path)
+            #else:
+            #    ds = load_dataset(
+            #        path=args.path,
+            #        name=args.name,
+            #        data_dir=args.data_dir,
+            #        data_files=args.data_files,
+            #        split=args.split,
+            #        revision=args.revision,
+            #        cache_dir=args.cache_dir,
+            #        num_proc=os.cpu_count(),
+            #        token=args.use_auth_token,
+            #    )
+
+            if args.data_files:
+                # load multiple json files(assume data_files contains glob pattern
+                ds = load_json_files(args.data_files, args.offset, args.nfiles)
             else:
-                ds = load_dataset(
-                    path=args.path,
-                    name=args.name,
-                    data_dir=args.data_dir,
-                    data_files=args.data_files,
-                    split=args.split,
-                    revision=args.revision,
-                    cache_dir=args.cache_dir,
-                    num_proc=os.cpu_count(),
-                    token=args.use_auth_token,
-                )
+                # load single file
+                ds = load_file(args.file)
 
         DATA_SIZE = len(ds)
+        print("# of items:", DATA_SIZE)
         PERMUTATIONS: np.ndarray = np.array(
             [
                 (
@@ -252,7 +275,7 @@ if __name__ == "__main__":  # pragma: no cover
                 },
                 input_columns=[args.column],
                 remove_columns=ds.column_names,
-                num_proc=os.cpu_count(),
+                num_proc=get_nprocs(),
                 with_indices=True,
                 desc="Fingerprinting...",
             )
@@ -282,7 +305,7 @@ if __name__ == "__main__":  # pragma: no cover
             ds = ds.map(
                 function=lambda _, idx: {"__cluster__": uf.find(idx)},
                 with_indices=True,
-                num_proc=os.cpu_count(),
+                num_proc=get_nprocs(),
                 new_fingerprint=str(random.getrandbits(128)),
                 desc="Finding clusters...",
             )
@@ -294,13 +317,17 @@ if __name__ == "__main__":  # pragma: no cover
             final_data = ds.filter(
                 function=lambda record, idx: record["__cluster__"] == idx,
                 with_indices=True,
-                num_proc=os.cpu_count(),
+                num_proc=get_nprocs(),
                 desc="Filtering clusters...",
             )
 
         with timer("Saving"):
             final_data = final_data.remove_columns(["__cluster__"])
-            final_data.save_to_disk(args.output)
+
+            buf = BytesIO()
+            nbytes = final_data.to_json(buf)
+            save_file(buf.getbuffer(), args.output)
+            #final_data.save_to_disk(args.output)
             if args.debug:
                 with open(os.path.join(args.output, "uf.pkl"), "wb") as f:
                     pickle.dump(uf, f, protocol=pickle.HIGHEST_PROTOCOL)
