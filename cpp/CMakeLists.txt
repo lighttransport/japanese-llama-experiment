@@ -22,6 +22,7 @@ set(CPP_SOURCES
   )
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/../third_party/simdjson simdjson)
+add_subdirectory(${PROJECT_SOURCE_DIR}/../third_party/libsais libsais)
 
 add_executable(${PROJECT_NAME} ${CPP_SOURCES})
 target_link_libraries(${PROJECT_NAME} PUBLIC zstd::zstd simdjson)
