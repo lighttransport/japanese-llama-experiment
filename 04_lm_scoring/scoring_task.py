@@ -34,9 +34,12 @@ if __name__ == '__main__':
         print(sentences)
 
         for sent in sentences:
-            # pretrained model in cc_net uses 'NFD' normalization?
-            # TODO: Use https://github.com/facebookresearch/cc_net/blob/main/cc_net/text_normalizer.py
-            text = unicodedata.normalize('NFC', sent)
+            # pretrained model in cc_net seems using'NFD' normalization
+            # Use https://github.com/facebookresearch/cc_net/blob/main/cc_net/text_normalizer.py
+            # For Japanese text, usually 'NFKC' is used.
+            # This may cause some discrepancy in tokenization.
+
+            text = unicodedata.normalize('NFKC', sent)
             toks = sp.encode(text, out_type=str)
 
             tok_input = " ".join(toks)
