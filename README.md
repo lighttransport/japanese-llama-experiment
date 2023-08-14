@@ -135,7 +135,7 @@ Some scripts are licensed under Apache 2.0 or BSD.
 
 ### Third party licenses
 
-Chinese LLaMa: Apache 2.0: https://github.com/ymcui/Chinese-LLaMA-Alpaca
-cc_net: MIT License https://github.com/facebookresearch/cc_net
-utf8proc: MIT license + permissive Unicode data license https://github.com/JuliaStrings/utf8proc
-jagger: We choose BSD license. https://www.tkl.iis.u-tokyo.ac.jp/~ynaga/jagger/
+* Chinese LLaMa: Apache 2.0: https://github.com/ymcui/Chinese-LLaMA-Alpaca
+* cc_net: MIT License https://github.com/facebookresearch/cc_net
+* utf8proc: MIT license + permissive Unicode data license https://github.com/JuliaStrings/utf8proc
+* jagger: We choose BSD license. https://www.tkl.iis.u-tokyo.ac.jp/~ynaga/jagger/
