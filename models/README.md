@@ -1,0 +1,3 @@
+- tinysegmenter-wiki-51200.model
+  - TinySegmenterMaker で wikipedia データセットの一部(分かち書きして shuffle して 1024 * 512 行取り出したもの)で学習したモデルです.
+  - MIT ライセンス
