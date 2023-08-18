@@ -51,4 +51,4 @@ def do_clean(text: str, ws_threshold=1):
 
         results.append(sent)
 
-    return "\\n".join(results)
+    return "\n".join(results)
