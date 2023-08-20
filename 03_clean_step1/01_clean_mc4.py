@@ -97,7 +97,7 @@ def do_clean(text: str):
 
         results.append(sent)
 
-    return "\\n".join(results)
+    return "\n".join(results)
         
 
 # global

@@ -9,9 +9,11 @@ import re
 import unicodedata
 
 UNICODE_PUNCT = {
+    # FIXME: 日本語の場合は句読点は、。のままがよいか
     "，": ",",
     "。": ".",
     "、": ",",
+
     "„": '"',
     "”": '"',
     "“": '"',

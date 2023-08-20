@@ -4,6 +4,7 @@
 
 #include <zstd.h>
 #include "common.h" // from zstd example
+#include "tinysegmenter.hpp"
 #include "utf8proc.h"
 #include <simdjson.h>
 

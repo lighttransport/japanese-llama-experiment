@@ -58,7 +58,7 @@ def do_clean_sudachi(_text: str):
     #print("sentences:", sentences)
     for sent in sentences:
 
-        sent = sent.lstrip('\\n')
+        sent = sent.lstrip('\n')
 
         # 1. remove if the sentence contains some whitespaces
         if count_whitespaces(sent) >= ws_threshold:
@@ -76,7 +76,7 @@ def do_clean_sudachi(_text: str):
     if len(results) == 0:
         return None
 
-    return "\\n".join(results)
+    return "\n".join(results)
 
 
 def do_clean(text: str):
@@ -136,7 +136,7 @@ def do_clean(text: str):
     if len(results) == 0:
         return None
 
-    return "\\n".join(results)
+    return "\n".join(results)
     
         
 
