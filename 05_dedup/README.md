@@ -1,4 +1,4 @@
-dedup of Japanese dataset, adapted from SlimPajama script.
+dedup of Japanese dataset, adapted from SlimPajama and HojiChar script.
 
 ## Setup
 
@@ -13,5 +13,9 @@ $ python -m pip install -r requirements.txt
 T.B.W.
 
 ## SlimPajama scripts license
+
+Apache 2.0
+
+## HojiChar scripts license
 
 Apache 2.0
