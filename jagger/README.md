@@ -20,7 +20,7 @@ $ wget http://www.tkl.iis.u-tokyo.ac.jp/~ynaga/jagger/mecab-jumandic-7.0-2013031
 $ patch -p0 < mecab-jumandic-7.0-20130310.patch
 
 # 京都大学ウェブ文書リード文コーパス
-$ git clone git clone https://github.com/ku-nlp/KWDLC
+$ git clone https://github.com/ku-nlp/KWDLC
 
 # configure the build
 $ ./configure
