@@ -7,7 +7,7 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/sanitizers)
 
 # look into <thisrepo>/cmake/Findzstd.cmake
-find_package(zstd REQUIRED)
+#find_package(zstd REQUIRED)
 
 # look into <thisrepo>/cmake/sanitizers
 find_package(Sanitizers) # Supply -DSANITIZE_ADDRESS
@@ -24,9 +24,10 @@ set(CPP_SOURCES
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/../third_party/simdjson simdjson)
 add_subdirectory(${PROJECT_SOURCE_DIR}/../third_party/libsais libsais)
+add_subdirectory(${PROJECT_SOURCE_DIR}/../third_party/zstd/build/cmake zstd)
 
 add_executable(${PROJECT_NAME} ${CPP_SOURCES})
-target_link_libraries(${PROJECT_NAME} PUBLIC zstd::zstd simdjson)
+target_link_libraries(${PROJECT_NAME} PUBLIC libzstd_static simdjson)
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/../third_party/utf8proc)
 add_sanitizers(${PROJECT_NAME})
 
