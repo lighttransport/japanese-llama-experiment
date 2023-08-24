@@ -1,3 +1,18 @@
+## built model
+
+You can download prebuilt KenLM model here: https://github.com/lighttransport/data-for-japanese-corpus
+
+```
+$ git lfs install
+$ git clone https://github.com/lighttransport/data-for-japanese-corpus
+```
+
+## Procedure
+
+### Char version
+
+### Wakachi-gaki version
+
 Build kenlm: build.txt
 Download wikidataset: download_wiki.txt
 Prepare wikidataset with Unicode normalization and wakachi-gaki: wakachi_tokenize.py
