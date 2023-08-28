@@ -2,7 +2,7 @@
 #include <string>
 #include <iostream>
 
-#include <zstd.h>
+#include "zstd.h"
 #include "common.h" // from zstd example
 #include "tinysegmenter.hpp"
 #include "utf8proc.h"
@@ -19,7 +19,24 @@ static std::string wakachi(const std::string &filename) {
   return text;
 }
 
-static std::string decompress(const char* fname)
+//
+// Assume `text` is UTF-8 string
+// Return empty string when failed to normalize.
+// 
+static std::string nfkc_normalize(const std::string &text) {
+
+  utf8proc_uint8_t *ret = utf8proc_NFKC(reinterpret_cast<const uint8_t *>(text.c_str()));
+
+  if (ret) {
+    std::string normalized_text(reinterpret_cast<const char *>(ret));
+    free(ret);
+    return normalized_text;
+  } else {
+    return std::string();
+  }
+}
+
+static std::string zstd_decompress(const char* fname)
 {
     size_t cSize;
     void* const cBuff = mallocAndLoadFile_orDie(fname, &cSize);
@@ -82,23 +99,33 @@ int main(int argc, char **argv) {
 
   if (argc < 3) {
     std::cout << "Need cmd ARGS\n";
-    std::cout << "  cmd: wakachi input.txt output.txt: Do wakachi-gaki for input string\n";
+    std::cout << "  cmd:\n";
+    std::cout << "    wakachi input.txt output.txt: Do wakachi-gaki for input string\n";
+    std::cout << "    normalize input_string : NFKC normalization\n";
     return -1;
   }
 
   std::string cmd = argv[1];
   if (cmd == "wakachi") {
+  } else if (cmd == "normalize") {
+    if (argc < 3) {
+      std::cerr << "Need input_string\n";
+      return -1;
+    }
+    std::string ret = nfkc_normalize(argv[2]);
+    std::cout << ret << "\n";
+  
   } else {
 
-    std::string jsonl = decompress(argv[1]);
+    std::string jsonl = zstd_decompress(argv[1]);
 
     std::vector<std::string> jsons = split_lines(jsonl);
-
 
     ondemand::parser parser;
     for (size_t i = 0; i < jsons.size(); i++) {
       padded_string json = padded_string(jsons[i]);
       ondemand::document j = parser.iterate(json);
+      std::cout << j << "\n";
     }
 
   }
