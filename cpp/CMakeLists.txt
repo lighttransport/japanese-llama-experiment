@@ -24,10 +24,10 @@ set(CPP_SOURCES
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/../third_party/simdjson simdjson)
 add_subdirectory(${PROJECT_SOURCE_DIR}/../third_party/libsais libsais)
-add_subdirectory(${PROJECT_SOURCE_DIR}/../third_party/zstd/build/cmake zstd)
+#add_subdirectory(${PROJECT_SOURCE_DIR}/../third_party/zstd/build/cmake zstd)
 
-add_executable(${PROJECT_NAME} ${CPP_SOURCES})
-target_link_libraries(${PROJECT_NAME} PUBLIC libzstd_static simdjson)
+add_executable(${PROJECT_NAME} ${CPP_SOURCES} zstd.c)
+target_link_libraries(${PROJECT_NAME} PUBLIC simdjson)
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/../third_party/utf8proc)
 add_sanitizers(${PROJECT_NAME})
 
