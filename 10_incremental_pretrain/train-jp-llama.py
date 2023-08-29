@@ -61,7 +61,7 @@ data_config = [
 
 
 def main(
-    devices: int = 4,
+    devices: int = 1,
     train_data_dir: Path = "data/lit-redpajama",
     val_data_dir: Optional[Path] = None,
 ) -> None:
@@ -153,7 +153,7 @@ def train(
 
         input_ids = train_data[:, 0 : model.config.block_size].contiguous()
         targets = train_data[:, 1 : model.config.block_size + 1].contiguous()
-        
+
         is_accumulating = (iter_num + 1) % grad_accum_steps != 0
 
         with fabric.no_backward_sync(model, enabled=is_accumulating):
