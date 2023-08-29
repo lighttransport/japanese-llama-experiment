@@ -8,6 +8,7 @@
 # TODO:
 # - [ ] 13-gram など gram の数をふやしてみる
 #
+import json
 import copy
 from os import PathLike
 from typing import Any, Callable, List, Union
@@ -18,7 +19,7 @@ import mmh3
 #from hojichar.core.models import Document
 
 
-class GenerateDedupLSH(Filter):
+class GenerateDedupLSH:
     """
     ドキュメントの重複判定に使用可能なハッシュ値を生成します。
     ハッシュ値は20個生成され、類似する(≒編集距離が近い)文章どうしのハッシュが似る性質を持ちます(Locality Sensitive Hashing)。
@@ -111,7 +112,7 @@ class GenerateDedupLSH(Filter):
 
         return lshs
 
-    def apply(self, doc: Document) -> Document:
+    def apply(self, doc: dict) -> dict:
         """
         編集距離の近い文書ではハッシュが類似します。次の例では、5番目のハッシュは完全一致し、`LSHDeduplicator` で重複と判定されます。
         >>> from pprint import pprint
@@ -190,12 +191,12 @@ class GenerateDedupLSH(Filter):
          '18+bdd9852c65d4d480c6f7273db35397725a50b049',
          '19+ac5cb320794cc2ce1f94c09adcc3a996a6d986c2']
         """
-        lshs = self.calc_lsh(doc.text)
-        doc.dedup_lsh = lshs
+        lshs = self.calc_lsh(doc['text'])
+        doc['dedup_lsh'] = lshs
         return doc
 
 
-class LSHDeduplicator(Filter):
+class LSHDeduplicator:
     """
     `hojichar.filters.document_filter.GenerateDedupLSH` で生成したハッシュ値を基に重複判定をします。
     対象コーパスが約 10^6 以下 (〜数十GBが目安) であれば、事前処理なしで重複処理が可能です。
@@ -230,7 +231,7 @@ class LSHDeduplicator(Filter):
         if store_blacklist:
             self.blacklist = copy.copy(self.seen)
 
-    def apply(self, doc: Document) -> Document:
+    def apply(self, doc: dict) -> dict:
         """
         >>> d1 = GenerateDedupLSH().apply(Document("Hello, World."))
         >>> d2 = GenerateDedupLSH().apply(Document("吾輩は猫である。名前はまだ無い。どこで生まれたかとんと見当がつかぬ。"))
@@ -243,16 +244,16 @@ class LSHDeduplicator(Filter):
         >>> deduplicator.apply(d3).is_rejected
         True
         """
-        lshs = doc.dedup_lsh
+        lshs = doc['dedup_lsh']
         if len(lshs) == 0:
             assert ValueError(
-                "LSHs for deduplication are not caluculated. Filter \
+                "LSHs for deduplication are not caluculated. \
                     `GenerateDedupLSH` must be composed before this filter."
             )
 
         for lsh in lshs:
             if lsh in self.seen:
-                doc.is_rejected = True
+                doc['is_rejected'] = True
                 if self.store_blacklist:
                     self.blacklist.add(lsh)
 
@@ -260,3 +261,12 @@ class LSHDeduplicator(Filter):
                 self.seen.add(lsh)
 
         return doc
+
+if __name__ == '__main__':
+    d1 = {}
+    d2 = {}
+    d3 = {}
+
+    d1['text'] = "Hello, World."
+    d2['text'] = "吾輩は猫である。名前はまだ無い。どこで生まれたかとんと見当がつかぬ。"
+    d3['text'] = "吾輩は鳥である。名前はまだ無い。どこで生まれたかとんと見当がつかぬ。"
