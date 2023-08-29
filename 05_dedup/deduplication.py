@@ -1,22 +1,34 @@
 # SPDX-License-Identifier: Apache 2.0
 # Based on HojiChar https://github.com/HojiChar/HojiChar
+#
+# Modification by Light Transport Entertainment Inc.
+#
 """
 文書の(近似)重複処理のためのモジュール.
 """
 
 #
 # TODO:
+#
 # - [ ] 13-gram など gram の数をふやしてみる
+# - [ ] Suffix array での exact dedup
 #
 import json
 import copy
 from os import PathLike
 from typing import Any, Callable, List, Union
 
+import json
 import mmh3
+from tqdm import tqdm
+from multiprocessing import Pool, cpu_count
+
+import text_normalizer
 
 #from hojichar.core.filter_interface import Filter
 #from hojichar.core.models import Document
+
+import zstandard
 
 
 class GenerateDedupLSH:
@@ -263,10 +275,54 @@ class LSHDeduplicator:
         return doc
 
 if __name__ == '__main__':
+
     d1 = {}
     d2 = {}
     d3 = {}
+    d1['text'] = text_normalizer.normalize_for_dedup("Hello, World.")
+    d2['text'] = text_normalizer.normalize_for_dedup("吾輩は猫である。名前はまだ無い。どこで生まれたかとんと見当がつかぬ。")
+    d3['text'] = text_normalizer.normalize_for_dedup("吾輩は鳥である。名前はまだ無い。どこで生まれたかとんと見当がつかぬ。")
 
-    d1['text'] = "Hello, World."
-    d2['text'] = "吾輩は猫である。名前はまだ無い。どこで生まれたかとんと見当がつかぬ。"
-    d3['text'] = "吾輩は鳥である。名前はまだ無い。どこで生まれたかとんと見当がつかぬ。"
+    d1 = GenerateDedupLSH().apply(d1)
+    d2 = GenerateDedupLSH().apply(d2)
+    d3 = GenerateDedupLSH().apply(d3)
+
+    deduplicator = LSHDeduplicator()
+    d1 = deduplicator.apply(d1)
+    d2 = deduplicator.apply(d2)
+    d3 = deduplicator.apply(d3)
+
+    print(d1.get('is_rejected', False), d2.get('is_rejected', False), d3.get('is_rejected', False))
+
+    in_filename = "../test_data/bora.jsonl.zst"
+
+    indata = open(in_filename, 'rb').read()
+
+    dctx = zstandard.ZstdDecompressor()
+    dobj = dctx.decompressobj()
+    jsonldata = dobj.decompress(indata)
+
+    lines = jsonldata.splitlines()
+    del indata
+
+    jsons = []
+    for line in lines:
+        jsons.append(json.loads(line))
+
+    nprocs = cpu_count()
+
+    def compute_minhash(arg):
+        d = GenerateDedupLSH().apply(arg)
+        return d
+
+    docs = [d1, d2, d3]
+
+    with Pool(processes=nprocs) as pool:
+        for i, chunks in enumerate(
+            tqdm(
+                pool.imap(
+                    compute_minhash,
+                    jsons)
+            )
+        ):
+            pass
