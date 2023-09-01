@@ -7,6 +7,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <cassert>
 
 #include "common.h"  // from zstd example
 #include "tinysegmenter.hpp"
@@ -17,6 +18,73 @@ static uint32_t cpu_count() {
   return (std::max)(1u, std::thread::hardware_concurrency());
 }
 
+namespace detail {
+
+inline std::string extract_utf8_char(const std::string& str, uint32_t start_i,
+                                     int& len) {
+  len = 0;
+
+  if ((start_i + 1) > str.size()) {
+    len = 0;
+    return std::string();
+  }
+
+  unsigned char c = static_cast<unsigned char>(str[start_i]);
+
+  if (c <= 127) {
+    // ascii
+    len = 1;
+    return str.substr(start_i, 1);
+  } else if ((c & 0xE0) == 0xC0) {
+    if ((start_i + 2) > str.size()) {
+      len = 0;
+      return std::string();
+    }
+    len = 2;
+    return str.substr(start_i, 2);
+  } else if ((c & 0xF0) == 0xE0) {
+    if ((start_i + 3) > str.size()) {
+      len = 0;
+      return std::string();
+    }
+    len = 3;
+    return str.substr(start_i, 3);
+  } else if ((c & 0xF8) == 0xF0) {
+    if ((start_i + 4) > str.size()) {
+      len = 0;
+      return std::string();
+    }
+    len = 4;
+    return str.substr(start_i, 4);
+  } else {
+    // invalid utf8
+    len = 0;
+    return std::string();
+  }
+}
+
+}
+
+static std::vector<std::string> to_utf8_chars(const std::string &str) {
+    uint64_t sz = str.size();
+    std::vector<std::string> utf8_chars;
+
+    for (size_t i = 0; i <= sz;) {
+      int len=0;
+      std::string s = detail::extract_utf8_char(str, uint32_t(i), len);
+      if (len == 0) {
+        // invalid char
+        break;
+      }
+
+      i += uint64_t(len);
+      utf8_chars.push_back(s);
+    }
+
+  return utf8_chars;
+}
+
+
 static std::string wakachi(const std::string &filename) {
   size_t cSize;
 
@@ -26,6 +94,40 @@ static std::string wakachi(const std::string &filename) {
   std::string text(reinterpret_cast<const char *>(cBuff), cSize);
 
   return text;
+}
+
+// Build N-gram
+//
+// vector of (utf-8 char x N)
+//
+template<size_t N>
+static std::vector<std::array<std::string, N>> build_ngram(const std::string &str)
+{
+  std::vector<std::array<std::string, N>> ret;
+
+  std::vector<std::string> utf8_chars = to_utf8_chars(str);
+
+  if (utf8_chars.size() < N) {
+    // empty
+    return ret;
+  }
+
+  size_t n = utf8_chars.size() - N + 1;
+
+  for (size_t i = 0; i < n; i++) {
+
+    assert((i + N) <= utf8_chars.size());
+
+    std::array<std::string, N> gram;
+
+    for (size_t k = 0; k < N; k++) {
+      gram[k] = utf8_chars[i + k];
+    }
+
+    ret.emplace_back(std::move(gram));
+  }
+
+  return ret;
 }
 
 //
