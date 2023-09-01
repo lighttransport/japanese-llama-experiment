@@ -13,6 +13,7 @@
 # - [ ] 13-gram など gram の数をふやしてみる
 # - [ ] Suffix array での exact dedup
 #
+import json
 import copy
 from os import PathLike
 from typing import Any, Callable, List, Union
@@ -258,7 +259,7 @@ class LSHDeduplicator:
         lshs = doc['dedup_lsh']
         if len(lshs) == 0:
             assert ValueError(
-                "LSHs for deduplication are not caluculated. Filter \
+                "LSHs for deduplication are not caluculated. \
                     `GenerateDedupLSH` must be composed before this filter."
             )
 

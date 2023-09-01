@@ -1,11 +1,6 @@
 ## Build
 
 ```
-$ sudo apt install libzstd-dev
-```
-
-
-```
 # checkout submodules(e.g. simdjson)
 $ git submodule update --init --recursive
 ```
@@ -16,3 +11,12 @@ $ cd build
 $ cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
 $ make
 ```
+
+### single-file zstd
+
+zstd.c was created using https://github.com/facebook/zstd/tree/dev/build/single_file_libs
+
+### Third party libraries
+
+* fastbase64 : https://github.com/lemire/fastbase64
+* murmurhash3. public domain: https://github.com/aappleby/smhasher/issues/86
