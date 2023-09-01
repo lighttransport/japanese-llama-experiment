@@ -18,9 +18,13 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# TODO: add neonbase64.cc or fastavxbase64.c based on CPU ISA.
 set(CPP_SOURCES
   main.cc
   jagger.cc
+  MurmurHash3.cpp
+  # fast scalar base64 encoding/decoding
+  chromiumbase64.c
   ${PROJECT_SOURCE_DIR}/../third_party/utf8proc/utf8proc.c
   )
 
