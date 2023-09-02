@@ -1,9 +1,3 @@
-[submodule "third_party/utf8proc"]
-	path = third_party/utf8proc
-	url = https://github.com/JuliaStrings/utf8proc
-[submodule "third_party/simdjson"]
-	path = third_party/simdjson
-	url = https://github.com/simdjson/simdjson
 [submodule "third_party/libsais"]
 	path = third_party/libsais
 	url = https://github.com/IlyaGrebnov/libsais
