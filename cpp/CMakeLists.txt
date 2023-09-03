@@ -28,9 +28,11 @@ set(CPP_SOURCES
   chromiumbase64.c
   zstd.c
   utf8proc.c
+  libsais64.c
+  libsais.c
   )
 
-add_subdirectory(${PROJECT_SOURCE_DIR}/../third_party/libsais libsais)
+#add_subdirectory(${PROJECT_SOURCE_DIR}/../third_party/libsais libsais)
 #add_subdirectory(${PROJECT_SOURCE_DIR}/../third_party/zstd/build/cmake zstd)
 
 add_executable(${PROJECT_NAME} ${CPP_SOURCES})

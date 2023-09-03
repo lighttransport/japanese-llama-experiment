@@ -9,10 +9,15 @@
 #include <vector>
 
 #include "common.h"  // from zstd example
+#include "jagger.h"
+#include "json.hpp"
 #include "simdjson.h"
 #include "tinysegmenter.hpp"
 #include "utf8proc.h"
 #include "zstd.h"
+
+#define GLOB_USE_GHC_FILESYSTEM
+#include "glob.hpp"
 
 static uint32_t cpu_count() {
   return (std::max)(1u, std::thread::hardware_concurrency());
@@ -199,23 +204,28 @@ std::vector<std::string> split_lines(const std::string &s) {
   return dst;
 }
 
-using namespace simdjson;
-
-void proc(const std::vector<std::string> &jsons) {
+std::vector<nlohmann::json> decode_jsonl(std::vector<std::string> &&json_strs) {
   uint32_t nthreads = cpu_count();
 
   std::vector<std::thread> workers;
   std::atomic<uint64_t> i(0ull);
 
+  std::vector<nlohmann::json> ret;
+  ret.resize(json_strs.size());
+
   for (uint32_t t = 0; t < nthreads; t++) {
     workers.emplace_back(std::thread([&]() {
       uint64_t idx;
 
-      while ((idx = (i++)) < jsons.size()) {
-        ondemand::parser parser;
-        padded_string json = padded_string(jsons[idx]);
-        ondemand::document j = parser.iterate(json);
-        std::cout << j << "\n";
+      while ((idx = (i++)) < json_strs.size()) {
+        // simdjson::ondemand::parser parser;
+        // simdjson::padded_string json_str =
+        // simdjson::padded_string(jsons[idx]); simdjson::ondemand::document doc
+        // = parser.iterate(json_str);
+
+        nlohmann::json j = nlohmann::json::parse(json_strs[idx]);
+
+        ret[idx] = std::move(j);
       }
     }));
   }
@@ -223,6 +233,37 @@ void proc(const std::vector<std::string> &jsons) {
   for (auto &th : workers) {
     th.join();
   }
+
+  return ret;
+}
+
+static std::vector<nlohmann::json> load_jsonl_zstd(
+    const glob::fs::path &filepath) {
+  std::string jsonl_data = zstd_decompress(filepath.c_str());
+
+  std::vector<nlohmann::json> jsonl = decode_jsonl(split_lines(jsonl_data));
+
+  return jsonl;
+}
+
+static bool dedup_files(const std::string &filepath, const std::string &text_key) {
+  std::vector<glob::fs::path> files = glob::glob(filepath + "/*");
+  std::cout << "num files: " << files.size() << "\n";
+
+  for (const auto &f : files) {
+    std::cout << f << "\n";
+
+    std::vector<nlohmann::json> jsonl = load_jsonl_zstd(f);
+
+    for (size_t i = 0; i < jsonl.size(); i++) {
+      const auto &j = jsonl[i];
+
+      auto lines = split_lines(j[text_key]);
+      std::cout << lines.size() << "\n";
+    }
+  }
+
+  return true;
 }
 
 int main(int argc, char **argv) {
@@ -232,6 +273,8 @@ int main(int argc, char **argv) {
     std::cout << "    wakachi input.txt output.txt: Do wakachi-gaki for input "
                  "string\n";
     std::cout << "    normalize input_string : NFKC normalization\n";
+    std::cout << "    dedup <folder> [text_key]: Text dedup. Look *.jsonl.zstd files in "
+                 "<folder>. [text_key] optional. specify text tag in JSON(default `text)\n";
     std::cout << "    proc input.jsonl.zstd : proc(WIP)\n";
     return -1;
   }
@@ -242,12 +285,22 @@ int main(int argc, char **argv) {
     std::string ret = nfkc_normalize(argv[2]);
     std::cout << ret << "\n";
 
-  } else if (cmd == "proc") {
-    std::string jsonl = zstd_decompress(argv[2]);
+  } else if (cmd == "dedup") {
+    std::string text_key = "text";
+    if (argc > 3) {
+      text_key = argv[3];
+    }
 
-    std::vector<std::string> jsons = split_lines(jsonl);
+    bool ret = dedup_files(argv[2],text_key);
 
-    proc(jsons);
+    if (ret) {
+      return 0;
+    } else {
+      return -1;
+    }
+  } else {
+    std::cout << "Unknown command: " << cmd << "\n";
+    return -1;
   }
 
   return 0;

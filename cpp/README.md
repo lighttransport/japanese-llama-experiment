@@ -1,11 +1,6 @@
 ## Build
 
 ```
-# checkout submodules(e.g. simdjson)
-$ git submodule update --init --recursive
-```
-
-```
 $ mkdir build
 $ cd build
 $ cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
@@ -20,3 +15,6 @@ zstd.c was created using https://github.com/facebook/zstd/tree/dev/build/single_
 
 * fastbase64 : https://github.com/lemire/fastbase64
 * murmurhash3. public domain: https://github.com/aappleby/smhasher/issues/86
+* glob: MIT license: https://github.com/p-ranav/glob
+* libsais: Apache 2.0
+* nlohmann/json: MIT license https://github.com/nlohmann/json
