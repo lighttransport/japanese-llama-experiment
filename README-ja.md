@@ -17,7 +17,8 @@ Chinese LLaMa を参考に, Japanese LLaMa の追加事前学習のチャレン�
 * [x] テキストの正規化 (02_normalize)[02_normalize]
   * NFKC で正規化
   * 句読点は現在「, .」. 「、。」にしたほうがいいか?
-* [x] 日本語データセットの pre cleaning (00_download_dataset/
+* [x] 日本語データセットの pre cleaning (03_clean_step1)
+* [ ] NG ワードでの filtering.
 * [ ] 品質スコアリング計算 (04_lm_scoring)[04_lm_scoring]
   * [ ] KenLM の Perplexity で品質を計算
 * [ ] dedup(重複除去) (05_dedup)[05_dedup]
@@ -39,6 +40,8 @@ LLM(Large Language Model) のフルの学習(事前学習, pretrain)では, 品�
 
 ## Requirents
 
+* cmake + C++ 14 compiler
+  * clang 推奨
 * Python 3.8+
 * (mini)conda 環境
 * GPU は不要です.
@@ -50,6 +53,18 @@ nlp 処理でライブラリのバージョンなどがかち合うため, 2 つ
 `python -m pip install -r requirements-ja-nlp.txt`
 
 で環境構築します.
+
+## Build CPP module
+
+dedup など処理の効率化のために C++ で処理を行います.
+(cmake は pip で入るのを利用するとよいでしょう)
+
+```
+$ cd cpp
+$ ./bootstrap.sh
+$ cd build
+$ make
+```
 
 ## Setup
 
