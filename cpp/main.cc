@@ -19,74 +19,12 @@
 #define GLOB_USE_GHC_FILESYSTEM
 #include "glob.hpp"
 
+//
+#include "str-util.hh"
+#include "dedup.hh"
+
 static uint32_t cpu_count() {
   return (std::max)(1u, std::thread::hardware_concurrency());
-}
-
-namespace detail {
-
-inline std::string extract_utf8_char(const std::string &str, uint32_t start_i,
-                                     int &len) {
-  len = 0;
-
-  if ((start_i + 1) > str.size()) {
-    len = 0;
-    return std::string();
-  }
-
-  unsigned char c = static_cast<unsigned char>(str[start_i]);
-
-  if (c <= 127) {
-    // ascii
-    len = 1;
-    return str.substr(start_i, 1);
-  } else if ((c & 0xE0) == 0xC0) {
-    if ((start_i + 2) > str.size()) {
-      len = 0;
-      return std::string();
-    }
-    len = 2;
-    return str.substr(start_i, 2);
-  } else if ((c & 0xF0) == 0xE0) {
-    if ((start_i + 3) > str.size()) {
-      len = 0;
-      return std::string();
-    }
-    len = 3;
-    return str.substr(start_i, 3);
-  } else if ((c & 0xF8) == 0xF0) {
-    if ((start_i + 4) > str.size()) {
-      len = 0;
-      return std::string();
-    }
-    len = 4;
-    return str.substr(start_i, 4);
-  } else {
-    // invalid utf8
-    len = 0;
-    return std::string();
-  }
-}
-
-}  // namespace detail
-
-static std::vector<std::string> to_utf8_chars(const std::string &str) {
-  uint64_t sz = str.size();
-  std::vector<std::string> utf8_chars;
-
-  for (size_t i = 0; i <= sz;) {
-    int len = 0;
-    std::string s = detail::extract_utf8_char(str, uint32_t(i), len);
-    if (len == 0) {
-      // invalid char
-      break;
-    }
-
-    i += uint64_t(len);
-    utf8_chars.push_back(s);
-  }
-
-  return utf8_chars;
 }
 
 static std::string wakachi(const std::string &filename) {
@@ -98,39 +36,6 @@ static std::string wakachi(const std::string &filename) {
   std::string text(reinterpret_cast<const char *>(cBuff), cSize);
 
   return text;
-}
-
-// Build N-gram
-//
-// vector of (utf-8 char x N)
-//
-template <size_t N>
-static std::vector<std::array<std::string, N>> build_ngram(
-    const std::string &str) {
-  std::vector<std::array<std::string, N>> ret;
-
-  std::vector<std::string> utf8_chars = to_utf8_chars(str);
-
-  if (utf8_chars.size() < N) {
-    // empty
-    return ret;
-  }
-
-  size_t n = utf8_chars.size() - N + 1;
-
-  for (size_t i = 0; i < n; i++) {
-    assert((i + N) <= utf8_chars.size());
-
-    std::array<std::string, N> gram;
-
-    for (size_t k = 0; k < N; k++) {
-      gram[k] = utf8_chars[i + k];
-    }
-
-    ret.emplace_back(std::move(gram));
-  }
-
-  return ret;
 }
 
 //
@@ -266,6 +171,28 @@ static bool dedup_files(const std::string &filepath, const std::string &text_key
   return true;
 }
 
+static int test_dedup() {
+  const char *in0 = "吾輩は猫である。名前はまだ無い。どこで生まれたかとんと見当がつかぬ。";
+  const char *in1 = "吾輩は鳥である。名前はまだ無い。どこで生まれたかとんと見当がつかぬ。";
+
+
+  auto n0 = strutil::build_ngram(in0, 5);
+  auto n1 = strutil::build_ngram(in1, 5);
+
+  LSHDedupConfig conf;
+
+  std::vector<std::vector<uint8_t>> lsh0 = compute_lsh(
+    n0, conf);
+
+  std::vector<std::vector<uint8_t>> lsh1 = compute_lsh(
+    n1, conf);
+
+
+  //std::cout << strutil::byte_to_he
+
+  return 0;
+}
+
 int main(int argc, char **argv) {
   if (argc < 3) {
     std::cout << "Need cmd ARGS\n";
@@ -276,6 +203,7 @@ int main(int argc, char **argv) {
     std::cout << "    dedup <folder> [text_key]: Text dedup. Look *.jsonl.zstd files in "
                  "<folder>. [text_key] optional. specify text tag in JSON(default `text)\n";
     std::cout << "    proc input.jsonl.zstd : proc(WIP)\n";
+    std::cout << "    test <test_cmd>: Run tests\n";
     return -1;
   }
 
@@ -298,6 +226,18 @@ int main(int argc, char **argv) {
     } else {
       return -1;
     }
+  } else if (cmd == "test") {
+    std::string suite = "text";
+    if (argc > 3) {
+      suite = argv[3];
+    }
+
+    if (suite == "dedup") {
+      return test_dedup();
+    } else {
+
+    }
+
   } else {
     std::cout << "Unknown command: " << cmd << "\n";
     return -1;

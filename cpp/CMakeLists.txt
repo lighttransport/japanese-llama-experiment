@@ -22,6 +22,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CPP_SOURCES
   main.cc
   jagger.cc
+  dedup.cc
   MurmurHash3.cpp
   simdjson.cpp
   # fast scalar base64 encoding/decoding
