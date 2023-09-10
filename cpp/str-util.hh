@@ -58,6 +58,21 @@ inline std::string extract_utf8_char(const std::string &str, uint32_t start_i,
   }
 }
 
+inline uint8_t utf8_len(char c) {
+  if (c <= 127) {
+    return 1;
+  } else if ((c & 0xE0) == 0xC0) {
+    return 2;
+  } else if ((c & 0xF0) == 0xE0) {
+    return 3;
+  } else if ((c & 0xF8) == 0xF0) {
+    return 4;
+  } else {
+    // invalid code-point
+    return 0;
+  }
+}
+
 inline std::vector<std::string> to_utf8_chars(const std::string &str) {
   uint64_t sz = str.size();
   std::vector<std::string> utf8_chars;
@@ -77,19 +92,54 @@ inline std::vector<std::string> to_utf8_chars(const std::string &str) {
   return utf8_chars;
 }
 
+// N-Gram representation with fixed buffer size.
+template<uint32_t N>
+struct NGram {
+
+  // Assume UTF-8 char is representable within 4 bytes.
+  // TODO: Consider UTF-8 char with 5 or more bytes(e.g. emoji)
+  uint8_t charbuf[4 * N] = {}; 
+  uint8_t charlen[N] = {}; // 1, 2, 3 or 4.
+  uint32_t nchars{0};
+  uint32_t nbytes{0};
+
+  bool add_utf8_char(const char *s) {
+    if (!s) {
+      return false;
+    }
+
+    uint32_t len = utf8_len(s[0]);
+    memcpy(&charbuf[nbytes], s, len);
+    
+    nbytes += len;
+
+    return true;
+  }
+
+  const uint8_t *buffer() const {
+    return &charbuf[0];
+  }
+
+  uint32_t n_bytes() const {
+    return nbytes;
+  }
+};
+
+
 //using UTF8Char = StackVector<char, 4>; // Usually less than 4 bytes.
 
 // TODO: Use UTFChar type.
-using NGram = StackVector<std::string, 32>;
+//using NGram = StackVector<std::string, 32>;
 
 //
 // Build N-gram
 //
 // vector of (utf-8 char x N)
 //
-inline std::vector<NGram> build_ngram(
-    const std::string &str, const uint32_t N) {
-  std::vector<NGram> ret;
+template<uint32_t N>
+inline std::vector<NGram<N>> build_ngram(
+    const std::string &str) {
+  std::vector<NGram<N>> ret;
 
   std::vector<std::string> utf8_chars = to_utf8_chars(str);
 
@@ -106,10 +156,10 @@ inline std::vector<NGram> build_ngram(
     size_t iend = std::min(i + N, utf8_chars.size());
     size_t nchars = iend - i;
 
-    NGram gram;
+    NGram<N> gram;
 
-    for (size_t k = 0; k < N; k++) {
-      gram->push_back(utf8_chars[i + k]);
+    for (size_t k = 0; k < nchars; k++) {
+      gram.add_utf8_char(utf8_chars[i + k].c_str());
     }
 
     ret.emplace_back(std::move(gram));
@@ -118,6 +168,7 @@ inline std::vector<NGram> build_ngram(
   return ret;
 }
 
+#if 0
 inline std::vector<uint8_t> ngram_to_bytes(const NGram &ngram) {
   std::vector<uint8_t> data;
 
@@ -129,6 +180,7 @@ inline std::vector<uint8_t> ngram_to_bytes(const NGram &ngram) {
 
   return data;
 }
+#endif
 
 inline std::string byte_to_hex_string(const std::vector<uint8_t> &bytes) {
   std::stringstream ss;

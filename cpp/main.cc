@@ -192,6 +192,7 @@ static std::vector<nlohmann::json> load_jsonl_zstd(
   return jsonl;
 }
 
+template<uint32_t N>
 void compute_hash(std::vector<nlohmann::json> &jsons,
                   const std::string &text_key) {
   uint32_t nthreads = cpu_count();
@@ -211,7 +212,7 @@ void compute_hash(std::vector<nlohmann::json> &jsons,
         // TODO: apply normalize for dedup.
         // auto lines = split_lines(j[text_key]);
 
-        auto ngram = strutil::build_ngram(j[text_key], 5);
+        auto ngram = strutil::build_ngram<5>(j[text_key]);
         std::vector<std::vector<uint8_t>> lshs = compute_lsh(ngram, conf);
 
         std::vector<std::string> lsh_base64_strs;
@@ -241,6 +242,7 @@ static bool save_json_zstd(const std::string &filepath,
                                s.size(), filepath.c_str());
 }
 
+template<uint32_t N = 5>
 static bool minhash_files(const std::string &filepath,
                           const std::string &output_basedir,
                           const std::string &text_key) {
@@ -261,7 +263,7 @@ static bool minhash_files(const std::string &filepath,
 
     std::vector<nlohmann::json> jsonl = load_jsonl_zstd(f);
 
-    compute_hash(jsonl, text_key);
+    compute_hash<N>(jsonl, text_key);
 
     n_documents += jsonl.size();
 
@@ -315,8 +317,8 @@ static int test_dedup() {
   const char *in1 =
       "吾輩は鳥である。名前はまだ無い。どこで生まれたかとんと見当がつかぬ。";
 
-  auto n0 = strutil::build_ngram(in0, 5);
-  auto n1 = strutil::build_ngram(in1, 5);
+  auto n0 = strutil::build_ngram<5>(in0);
+  auto n1 = strutil::build_ngram<5>(in1);
 
   LSHDedupConfig conf;
 
