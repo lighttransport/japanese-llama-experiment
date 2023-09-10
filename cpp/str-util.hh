@@ -8,6 +8,8 @@
 #include <array>
 #include <cassert>
 #include <algorithm>
+#include <sstream>
+#include <iomanip>
 
 #include "stack_container.h"
 
@@ -126,6 +128,20 @@ inline std::vector<uint8_t> ngram_to_bytes(const NGram &ngram) {
   }
 
   return data;
+}
+
+inline std::string byte_to_hex_string(const std::vector<uint8_t> &bytes) {
+  std::stringstream ss;
+
+  ss << "0x";
+
+  // TODO: optimize hex print.
+  // e.g.: https://github.com/zbjornson/fast-hex/tree/master
+  for (auto b : bytes) {
+    ss << std::setfill('0') << std::right << std::setw(2) << std::hex << int16_t(b);
+  }
+
+  return ss.str();
 }
 
 }  // namespace strutil

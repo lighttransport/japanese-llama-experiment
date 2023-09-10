@@ -1,10 +1,20 @@
 #include <algorithm>
+#include <clocale>
 #include <cstdint>
 #include <set>
 #include <vector>
 
+#include <thread>
+#include <mutex>
+#include <mutex>
+
 #include "dedup.hh"
 #include "MurmurHash3.h"
+
+static uint32_t cpu_count() {
+  return (std::max)(1u, std::thread::hardware_concurrency());
+}
+
 
 std::vector<std::vector<uint8_t>> compute_lsh(
   const std::vector<strutil::NGram> &ngram_text,
@@ -45,8 +55,7 @@ std::vector<std::vector<uint8_t>> compute_lsh(
   for (size_t bucket_i = 0; bucket_i < conf.n_buckets; bucket_i++) {
 
     std::vector<uint8_t> lsh;
-    // lsh = 1byte(bucket_id) + concat fingerprints by extracting lower 2byte of hash
-    lsh.push_back(uint8_t(bucket_i));
+    // lsh = concat fingerprints by extracting lower 2byte of hash
 
     for (size_t bucket_s = 0; bucket_s < conf.bucket_size; bucket_s++) {
       // LSB 2 bytes.
@@ -82,3 +91,25 @@ double compute_jaccard(std::vector<uint32_t> &a, std::vector<uint32_t> &b) {
 
   return double(result_i.size()) / double(result_u.size());
 }
+
+
+bool dedup_stream(
+  const std::vector<std::vector<uint8_t>> &lshs,
+  std::set<std::vector<uint8_t>> &hash_store /* inout */) {
+
+  bool duplicated{false};
+
+  for (size_t i = 0; i < lshs.size(); i++) {
+    const std::vector<uint8_t> &lsh = lshs[i];
+
+    if (hash_store.count(lsh)) {
+      duplicated = true;
+    } else {
+      hash_store.insert(lsh);
+    }
+  }
+
+  return duplicated;
+
+}
+
