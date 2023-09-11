@@ -58,7 +58,9 @@ inline std::string extract_utf8_char(const std::string &str, uint32_t start_i,
   }
 }
 
-inline uint8_t utf8_len(char c) {
+inline uint8_t utf8_len(char _c) {
+  uint8_t c = uint8_t(_c);
+ 
   if (c <= 127) {
     return 1;
   } else if ((c & 0xE0) == 0xC0) {
@@ -122,6 +124,11 @@ struct NGram {
 
   uint32_t n_bytes() const {
     return nbytes;
+  }
+
+  std::string str() const {
+    std::string ret(reinterpret_cast<const char *>(buffer()), n_bytes());
+    return ret;
   }
 };
 
@@ -191,6 +198,20 @@ inline std::string byte_to_hex_string(const std::vector<uint8_t> &bytes) {
   // e.g.: https://github.com/zbjornson/fast-hex/tree/master
   for (auto b : bytes) {
     ss << std::setfill('0') << std::right << std::setw(2) << std::hex << int16_t(b);
+  }
+
+  return ss.str();
+}
+
+inline std::string byte_to_hex_string(const char *addr, size_t nbytes) {
+  std::stringstream ss;
+
+  ss << "0x";
+
+  // TODO: optimize hex print.
+  // e.g.: https://github.com/zbjornson/fast-hex/tree/master
+  for (size_t i = 0; i < nbytes; i++) {
+    ss << std::setfill('0') << std::right << std::setw(2) << std::hex << uint16_t(*reinterpret_cast<const uint8_t *>(&addr[i]));
   }
 
   return ss.str();

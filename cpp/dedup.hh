@@ -2,7 +2,9 @@
 
 #include <cstdint>
 #include <set>
+#include <unordered_set>
 #include <vector>
+#include <cstring>
 
 #include "str-util.hh"
 #include "MurmurHash3.h"
@@ -14,6 +16,78 @@ struct LSHDedupConfig
   uint32_t bucket_size{10}; // 450 for higher accuracy(from RefinedWeb)
 };
 
+// cityhash
+template <class T> inline void hash_combine(std::size_t& seed, const T& v)
+{
+    std::hash<T> hasher;
+    const std::size_t kMul = 0x9ddfea08eb382d69ULL;
+    std::size_t a = (hasher(v) ^ seed) * kMul;
+    a ^= (a >> 47);
+    std::size_t b = (seed ^ a) * kMul;
+    b ^= (b >> 47);
+    seed = b * kMul;
+}
+
+
+// B-byte minhash
+// for now, B must 2
+template<uint32_t BUCKET_SIZE = 10, uint32_t B = 2>
+struct MinHashVal
+{
+  static_assert(B == 2, "B must be 2 for now.");
+
+  uint64_t vals[BUCKET_SIZE / (sizeof(uint64_t) / B)];
+
+  const char *data() const {
+    return reinterpret_cast<const char *>(vals);
+  }
+
+  constexpr size_t size() const {
+    return BUCKET_SIZE * B;
+  }
+
+  constexpr size_t nitems() const {
+    return sizeof(vals) / sizeof(uint64_t);
+  }
+    
+};
+
+static_assert(sizeof(size_t) == sizeof(uint64_t), "");
+
+// hasher for unordered_set
+// value is already hashed, so only take a combine of them.
+template<uint32_t BUCKET_SIZE = 10, uint32_t B = 2>
+struct MinHashValHasher
+{
+  static_assert(B == 2, "B must be 2 for now.");
+
+  size_t operator()(const MinHashVal<BUCKET_SIZE, B> &k) const {
+    size_t seed = k.vals[0];
+    for (uint32_t i = 1; i < k.nitems(); i++) {
+      hash_combine(seed, k.vals[i]);
+    }
+
+    return seed;
+  }
+};
+
+// comparator for unordered_set
+template<uint32_t BUCKET_SIZE = 10, uint32_t B = 2>
+struct MinHashValEqual
+{
+  static_assert(B == 2, "B must be 2 for now.");
+
+  constexpr bool operator()(const MinHashVal<BUCKET_SIZE, B> &lhs, const MinHashVal<BUCKET_SIZE, B> &rhs) const {
+    for (uint32_t i = 0; i < lhs.nitems(); i++) {
+      if (lhs.vals[i] != rhs.vals[i]) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+};
+
 #if 0
 template<int N_BUCKETS, int BUCKET_SIZE>
 std::vector<std::vector<uint8_t>> compute_lsh_fast(
@@ -23,16 +97,15 @@ std::vector<std::vector<uint8_t>> compute_lsh_fast(
 }
 #endif
 
-template<uint32_t N>
-std::vector<std::vector<uint8_t>> compute_lsh(
-  const std::vector<strutil::NGram<N>> &ngram_text,
-  const LSHDedupConfig &conf) {
+template<uint32_t N_GRAM, uint32_t N_BUCKETS = 20, uint32_t BUCKET_SIZE = 10>
+std::array<MinHashVal<BUCKET_SIZE, 2>, N_BUCKETS> compute_lsh(
+  const std::vector<strutil::NGram<N_GRAM>> &ngram_text)
+{
+  constexpr uint32_t N_MINHASH = N_BUCKETS * BUCKET_SIZE;
 
-  uint32_t n_minhash = conf.n_buckets * conf.bucket_size;
+  std::array<uint32_t, N_MINHASH> fingerprints; // len = n_minhash
 
-  std::vector<uint32_t> fingerprints; // len = n_minhash
-
-  for (uint32_t seed = 0; seed < n_minhash; seed++) {
+  for (uint32_t seed = 0; seed < N_MINHASH; seed++) {
 
     uint32_t min_hashval;
 
@@ -50,30 +123,48 @@ std::vector<std::vector<uint8_t>> compute_lsh(
       }
     }
 
-    fingerprints.push_back(min_hashval);
-
+    fingerprints[seed] = min_hashval;
   }
 
   // bucketize
-  std::vector<std::vector<uint8_t>> lshs;
+  std::array<MinHashVal<BUCKET_SIZE, 2>, N_BUCKETS> lshs;
 
-  for (size_t bucket_i = 0; bucket_i < conf.n_buckets; bucket_i++) {
+  for (size_t bucket_i = 0; bucket_i < N_BUCKETS; bucket_i++) {
 
-    std::vector<uint8_t> lsh;
+    MinHashVal<BUCKET_SIZE, 2> lsh;
     // lsh = concat fingerprints by extracting lower 2byte of hash
 
-    for (size_t bucket_s = 0; bucket_s < conf.bucket_size; bucket_s++) {
-      // LSB 2 bytes.
-      uint16_t f = uint16_t(fingerprints[bucket_i * conf.bucket_size + bucket_s] & 0xffff);
+    for (size_t bucket_s = 0; bucket_s < BUCKET_SIZE; bucket_s++) {
+      // extract LSB 2 bytes.
+      uint16_t f = uint16_t(fingerprints[bucket_i * BUCKET_SIZE + bucket_s] & 0xffff);
 
-      lsh.push_back(uint8_t((f >> 8) & 0xff));
-      lsh.push_back(uint8_t(f & 0xff));
+      memcpy(reinterpret_cast<uint8_t *>(&lsh.vals[0]) + 2 * bucket_s,  &f, 2);
     }
 
-    lshs.push_back(lsh);
+    lshs[bucket_i] = lsh;
   }
 
   return lshs;
+}
+
+template<uint32_t N_BUCKETS, uint32_t BUCKET_SIZE = 10, uint32_t B = 2>
+bool dedup_stream(
+  const std::array<MinHashVal<BUCKET_SIZE, B>, N_BUCKETS> &lshs,
+  std::unordered_set<MinHashVal<BUCKET_SIZE, B>, MinHashValHasher<BUCKET_SIZE, B>, MinHashValEqual<BUCKET_SIZE, B>> &hash_store /* inout */) {
+
+  bool duplicated{false};
+
+  for (size_t i = 0; i < N_BUCKETS; i++) {
+    const auto &lsh = lshs[i];
+
+    if (hash_store.count(lsh)) {
+      duplicated = true;
+    } else {
+      hash_store.insert(lsh);
+    }
+  }
+
+  return duplicated;
 }
 
 

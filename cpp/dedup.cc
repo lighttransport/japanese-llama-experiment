@@ -14,7 +14,6 @@ static uint32_t cpu_count() {
   return (std::max)(1u, std::thread::hardware_concurrency());
 }
 
-
 // ret = intersection(a, b) / union(a, b)
 double compute_jaccard(std::vector<uint32_t> &a, std::vector<uint32_t> &b) {
   // inputs must be sorted.

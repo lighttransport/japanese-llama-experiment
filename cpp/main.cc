@@ -25,6 +25,12 @@
 #include "dedup.hh"
 #include "str-util.hh"
 
+#define N_GRAM 5
+#define B_BYTES 2 // this should be 2
+#define N_BUCKETS 20 // this should be 20
+
+#define BUCKET_SIZE 10 // 10 = The Pile. 450 = RefinedWeb
+
 static uint32_t cpu_count() {
   return (std::max)(1u, std::thread::hardware_concurrency());
 }
@@ -36,6 +42,20 @@ static std::string to_base64(const std::vector<uint8_t> &bytes) {
   dst.resize(len);
 
   size_t n = chromium_base64_encode(dst.data(), reinterpret_cast<const char *>(bytes.data()), bytes.size());
+  if (n == MODP_B64_ERROR) {
+    return std::string();
+  }
+
+  return std::string(dst.data(), n);
+}
+
+static std::string to_base64(const char *addr, size_t nbytes) {
+  size_t len = chromium_base64_encode_len(nbytes);
+
+  std::vector<char> dst;
+  dst.resize(len);
+
+  size_t n = chromium_base64_encode(dst.data(), addr, nbytes);
   if (n == MODP_B64_ERROR) {
     return std::string();
   }
@@ -200,7 +220,6 @@ void compute_hash(std::vector<nlohmann::json> &jsons,
   std::vector<std::thread> workers;
   std::atomic<uint64_t> i(0ull);
 
-  LSHDedupConfig conf;
 
   for (uint32_t t = 0; t < nthreads; t++) {
     workers.emplace_back(std::thread([&]() {
@@ -212,12 +231,12 @@ void compute_hash(std::vector<nlohmann::json> &jsons,
         // TODO: apply normalize for dedup.
         // auto lines = split_lines(j[text_key]);
 
-        auto ngram = strutil::build_ngram<5>(j[text_key]);
-        std::vector<std::vector<uint8_t>> lshs = compute_lsh(ngram, conf);
+        auto ngram = strutil::build_ngram<N_GRAM>(j[text_key]);
+        std::array<MinHashVal<BUCKET_SIZE, B_BYTES>, N_BUCKETS> lshs = compute_lsh<N_GRAM, N_BUCKETS, BUCKET_SIZE>(ngram);
 
-        std::vector<std::string> lsh_base64_strs;
-        for (auto &lsh : lshs) {
-          lsh_base64_strs.push_back(to_base64(lsh));
+        std::array<std::string, N_BUCKETS> lsh_base64_strs;
+        for (size_t i = 0; i < N_BUCKETS; i++) {
+          lsh_base64_strs[i] = to_base64(lshs[i].data(), lshs[i].size());
         }
         j["minhashes"] = lsh_base64_strs;
       }
@@ -316,32 +335,57 @@ static int test_dedup() {
       "吾輩は猫である。名前はまだ無い。どこで生まれたかとんと見当がつかぬ。";
   const char *in1 =
       "吾輩は鳥である。名前はまだ無い。どこで生まれたかとんと見当がつかぬ。";
+  const char *in2 =
+      "東京は晴れ.";
 
-  auto n0 = strutil::build_ngram<5>(in0);
-  auto n1 = strutil::build_ngram<5>(in1);
+  auto n0 = strutil::build_ngram<N_GRAM>(in0);
+  auto n1 = strutil::build_ngram<N_GRAM>(in1);
+  auto n2 = strutil::build_ngram<N_GRAM>(in2);
 
-  LSHDedupConfig conf;
+  for (const auto &gram : n0) {
+    std::cout << gram.str() << "\n";
+  }
+  for (const auto &gram : n1) {
+    std::cout << gram.str() << "\n";
+  }
+  for (const auto &gram : n2) {
+    std::cout << gram.str() << "\n";
+  }
 
-  std::vector<std::vector<uint8_t>> lsh0 = compute_lsh(n0, conf);
 
-  std::vector<std::vector<uint8_t>> lsh1 = compute_lsh(n1, conf);
+  //LSHDedupConfig conf;
+
+  auto lsh0 = compute_lsh<N_GRAM, N_BUCKETS, BUCKET_SIZE>(n0);
+  auto lsh1 = compute_lsh<N_GRAM, N_BUCKETS, BUCKET_SIZE>(n1);
+  auto lsh2 = compute_lsh<N_GRAM, N_BUCKETS, BUCKET_SIZE>(n2);
+
 
   std::cout << in0 << "\n";
   for (const auto &lsh : lsh0) {
-    std::cout << strutil::byte_to_hex_string(lsh) << "\n";
+    std::cout << "lsh.sz = " << lsh.size() << "\n";
+    std::cout << strutil::byte_to_hex_string(lsh.data(), lsh.size()) << "\n";
   }
 
   std::cout << in1 << "\n";
   for (const auto &lsh : lsh1) {
-    std::cout << strutil::byte_to_hex_string(lsh) << "\n";
+    std::cout << strutil::byte_to_hex_string(lsh.data(), lsh.size()) << "\n";
   }
 
-  std::set<std::vector<uint8_t>> hash_store;
-  if (dedup_stream(lsh0, hash_store)) {
+  std::cout << in2 << "\n";
+  for (const auto &lsh : lsh2) {
+    std::cout << strutil::byte_to_hex_string(lsh.data(), lsh.size()) << "\n";
+  }
+
+  std::unordered_set<MinHashVal<BUCKET_SIZE, B_BYTES>, MinHashValHasher<BUCKET_SIZE, B_BYTES>, MinHashValEqual<BUCKET_SIZE, B_BYTES>> hash_store;
+
+  if (dedup_stream<N_BUCKETS, BUCKET_SIZE, B_BYTES>(lsh0, hash_store)) {
     std::cout << in0 << " duplicated!\n";
   }
-  if (dedup_stream(lsh1, hash_store)) {
+  if (dedup_stream<N_BUCKETS, BUCKET_SIZE, B_BYTES>(lsh1, hash_store)) {
     std::cout << in1 << " duplicated!\n";
+  }
+  if (dedup_stream<N_BUCKETS, BUCKET_SIZE, B_BYTES>(lsh2, hash_store)) {
+    std::cout << in2 << " duplicated!\n";
   }
 
   return 0;
