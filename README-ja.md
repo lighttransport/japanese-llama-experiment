@@ -135,6 +135,39 @@ NFD ですと, 日本語では「が」が「か　”」などと濁点が分�
 
 したがって, SlimPajama データセットで学習したモデルにたいして, NFKC で正規化した日本語データセットで追加事前学習するのは大丈夫と言えそうです.
 
+## 品質スコアリング
+
+
+Wikipedia 文章を NFKC 正規化して KenLM で学習し, それを用いて品質スコアリング(Perplexity 算出)します.
+
+pretrain したモデルは以下から取得できます.
+
+https://huggingface.co/lighttransport/japanese-scoring-model
+
+分かち書き版は 9.5 GB くらいあるので注意ください.
+
+
+(ccnet にも pretrain された KenLM model がありますが, ccnet のほうは NFD 正規化しているような気がしますので, 入力を NFD 正規化しないとうまく Perplexity が算出できないかもしれません)
+
+
+## dedup
+
+### Minhash で fuzzy dedup
+
+minhash を求め, それを元に Fuzzy dedup を行います.
+
+minhash は 5-gram, 20 x 10 buckets(The Pile と同じ構成)でハッシュを 200 個計算します.
+
+TODO:
+
+- [ ] RefinedWeb にしたがって 20 x 450 の 9000 ハッシュを計算するようにする. 20 x 10 では dedup 精度が低いっぽい
+- [ ] minhash で false positive 対策のため, Jaccard 係数求める additional step も実装する
+  - ただ, データセットサイズが大きいと Jaccard 係数求めて dedup は難しいところであるため, RefinedWeb では Jaccard 係数算出は行っていない
+
+### Suffix array で exact dedup
+
+TODO.
+
 
 ## 日本語トークナイザ作成
 

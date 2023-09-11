@@ -19,7 +19,7 @@
 #include <string.h>    // strerror
 #include <errno.h>     // errno
 #include <sys/stat.h>  // stat
-#include <zstd.h>
+#include "zstd.h"
 
 
 /* UNUSED_ATTR tells the compiler it is okay if the function is unused. */

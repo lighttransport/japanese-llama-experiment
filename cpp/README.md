@@ -30,3 +30,4 @@ zstd.c was created using https://github.com/facebook/zstd/tree/dev/build/single_
 * libsais: Apache 2.0
 * nlohmann/json: MIT license https://github.com/nlohmann/json
 * stack_container.h: BSD license
+* sqlite3: public domain.

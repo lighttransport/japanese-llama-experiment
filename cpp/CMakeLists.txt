@@ -31,12 +31,13 @@ set(CPP_SOURCES
   utf8proc.c
   libsais64.c
   libsais.c
+  sqlite3.c
   )
 
 #add_subdirectory(${PROJECT_SOURCE_DIR}/../third_party/libsais libsais)
 #add_subdirectory(${PROJECT_SOURCE_DIR}/../third_party/zstd/build/cmake zstd)
 
 add_executable(${PROJECT_NAME} ${CPP_SOURCES})
-target_link_libraries(${PROJECT_NAME} PUBLIC Threads::Threads)
+target_link_libraries(${PROJECT_NAME} PUBLIC Threads::Threads ${CMAKE_DL_LIBS})
 add_sanitizers(${PROJECT_NAME})
 
