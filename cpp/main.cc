@@ -8,6 +8,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <cstring>
 
 #include "common.h"  // from zstd example
 #include "jagger.h"
@@ -330,6 +331,118 @@ static bool minhash_files(const std::string &filepath,
   return true;
 }
 
+template<uint32_t T_N_BUCKETS, uint32_t T_BUCKET_SIZE = BUCKET_SIZE, uint32_t T_B = B_BYTES>
+static std::array<MinHashVal<T_BUCKET_SIZE, T_B>, T_N_BUCKETS> decode_hashval(
+  const std::vector<std::string> &minhashes_strs)
+{
+  std::array<MinHashVal<T_BUCKET_SIZE, T_B>, T_N_BUCKETS> lshs;
+
+  std::vector<uint8_t> buf;
+
+  for (size_t i = 0; i < T_N_BUCKETS; i++) {
+
+    buf.resize(minhashes_strs[i].size());
+
+    size_t n = chromium_base64_decode(reinterpret_cast<char *>(buf.data()), minhashes_strs[i].data(), minhashes_strs[i].size());
+    if (n == MODP_B64_ERROR) {
+      std::cerr << "failed to decode base64 string\n";
+      exit(-1);
+    }
+
+    if (n != (BUCKET_SIZE * B_BYTES)) {
+      std::cerr << "hashval size mismatch\n";
+      exit(-1);
+    }
+
+    memcpy(reinterpret_cast<void *>(lshs[i].data()), buf.data(), BUCKET_SIZE * B_BYTES);
+  }
+
+  return lshs;
+}
+
+static bool dedup_to_files(const std::string &filepath)
+{
+  std::vector<glob::fs::path> files = glob::glob({filepath + "/*.zstd", filepath + "/*.zst"});
+  std::cout << "num files: " << files.size() << "\n";
+
+  size_t n_documents = 0;
+  size_t n_dups = 0;
+  size_t n_processed_files = 0;
+
+  std::unordered_set<MinHashVal<BUCKET_SIZE, B_BYTES>, MinHashValHasher<BUCKET_SIZE, B_BYTES>, MinHashValEqual<BUCKET_SIZE, B_BYTES>> hash_store;
+
+  for (const auto &f : files) {
+    std::cout << f << "\n";
+
+    //glob::fs::path outpath = output_basedir / f.filename();
+    //std::cout << "output filepath: " << outpath << "\n";
+
+    std::vector<nlohmann::json> jsonl = load_jsonl_zstd(f);
+
+    n_documents += jsonl.size();
+
+    // TODO: threading
+    for (size_t i = 0; i < jsonl.size(); i++) {
+      const auto &j = jsonl[i];
+
+      std::vector<std::string> minhashes_strs = j["minhashes"];
+
+      if (minhashes_strs.size() != N_BUCKETS) {
+        std::cerr << "`minhashes` must be an array with length " << N_BUCKETS << ", but got " << minhashes_strs.size() << "\n";
+        return false;
+      }
+
+      auto lshs = decode_hashval<N_BUCKETS, BUCKET_SIZE, B_BYTES>(minhashes_strs);
+
+      bool deduped = dedup_stream<N_BUCKETS, BUCKET_SIZE, B_BYTES>(lshs, hash_store);
+      if (deduped) {
+        n_dups++;
+      }
+    }
+
+    n_processed_files++;
+
+    std::cout << "duplicated " << n_dups << " documents(total " << n_documents << "). ratio = "
+              << 100.0 * double(n_dups) / double(n_documents) << " %\n";
+    std::cout << "  processed files: " << n_processed_files << " / " << files.size() << "\n";
+    std::cout << "  hash_store.size: " << hash_store.size() << "\n";
+
+#if 0
+    std::vector<nlohmann::json> out_jsonl = jsonl;
+
+    std::stringstream ss;
+
+    // strip text
+    for (size_t i = 0; i < out_jsonl.size(); i++) {
+      auto &j = out_jsonl[i];
+
+      if (i > 0) {
+        ss << "\n";
+      }
+
+      ss << j;
+    }
+
+    std::string jsonl_str = ss.str();
+
+    // save
+    if (!zstd_compress_to_file(reinterpret_cast<const void *>(jsonl_str.c_str()),
+                               jsonl_str.size(), outpath.c_str())) {
+      std::cerr << "Failed to compress/write file: " << outpath << "\n";
+      return false;
+    }
+#endif
+
+  }
+
+  std::cout << "TOTAL: duplicated " << n_dups << " documents(total " << n_documents << "). ratio = "
+            << 100.0 * double(n_dups) / double(n_documents) << " %\n";
+  std::cout << "  processed files: " << n_processed_files << " / " << files.size() << "\n";
+  std::cout << "  hash_store.size " << hash_store.size() << "\n";
+
+  return true;
+}
+
 static int test_dedup() {
   const char *in0 =
       "吾輩は猫である。名前はまだ無い。どこで生まれたかとんと見当がつかぬ。";
@@ -438,6 +551,16 @@ int main(int argc, char **argv) {
     } else {
       return -1;
     }
+  } else if (cmd == "dedup") {
+
+    bool ret = dedup_to_files(argv[2]);
+
+    if (ret) {
+      return 0;
+    } else {
+      return -1;
+    }
+
   } else if (cmd == "test") {
     std::string suite = "text";
     if (argc > 2) {

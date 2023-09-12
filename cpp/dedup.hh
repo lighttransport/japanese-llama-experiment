@@ -5,6 +5,7 @@
 #include <unordered_set>
 #include <vector>
 #include <cstring>
+#include <iostream>
 
 #include "str-util.hh"
 #include "MurmurHash3.h"
@@ -36,10 +37,14 @@ struct MinHashVal
 {
   static_assert(B == 2, "B must be 2 for now.");
 
-  uint64_t vals[BUCKET_SIZE / (sizeof(uint64_t) / B)];
+  uint32_t vals[BUCKET_SIZE / (sizeof(uint32_t) / B)];
 
   const char *data() const {
     return reinterpret_cast<const char *>(vals);
+  }
+
+  char *data() {
+    return reinterpret_cast<char *>(vals);
   }
 
   constexpr size_t size() const {
@@ -47,7 +52,7 @@ struct MinHashVal
   }
 
   constexpr size_t nitems() const {
-    return sizeof(vals) / sizeof(uint64_t);
+    return sizeof(vals) / sizeof(uint32_t);
   }
     
 };
@@ -168,6 +173,7 @@ bool dedup_stream(
 }
 
 
+#if 0
 ///
 ///
 /// Store hashes `hash_store`
@@ -178,6 +184,7 @@ bool dedup_stream(
 bool dedup_stream(
   const std::vector<std::vector<uint8_t>> &lshs,
   std::set<std::vector<uint8_t>> &hash_store /* inout */);
+#endif
 
 #if 0
 // Do text dedup with Locally-Sensitive Hash
