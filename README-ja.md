@@ -18,12 +18,13 @@ Chinese LLaMa を参考に, Japanese LLaMa の追加事前学習のチャレン�
   * NFKC で正規化
   * 句読点は現在「, .」. 「、。」にしたほうがいいか?
 * [x] 日本語データセットの pre cleaning (03_clean_step1)
-* [ ] NG ワードでの filtering.
-* [ ] 品質スコアリング計算 (04_lm_scoring)[04_lm_scoring]
+* [ ] NG ワードなどでの filtering.
+  * [ ] HojiChar 利用予定 
+* [x] 品質スコアリング計算 (04_lm_scoring)[04_lm_scoring]
   * [ ] KenLM の Perplexity で品質を計算
-* [ ] dedup(重複除去) (05_dedup)[05_dedup]
-  * [ ] MinHash fuzzy dedup
-  * [ ] suffix array exact dedup
+* [x] dedup(重複除去) (05_dedup)[05_dedup]
+  * [x] MinHash fuzzy dedup
+  * [ ] (optional) suffix array exact dedup
 * [ ] 日本語トークナイザ学習
 * [ ] 日本語トークナイザとクリーニングした日本語データセットで追加事前学習(incremental pre-training)
 * [ ] 日本語ファインチューニングデータセットでファインチューニング(Alpaca など)
@@ -113,9 +114,11 @@ dedup 後にひとつの jsonl + zstd のセットにまとめます.
     * TODO: jaggar なりの高速形態素解析ライブラリを使う.
 * [ ] `04_lm_scoring/` KenLM による品質スコアリング
   * KenLM で日本語文章の品質スコアリングを行うメモ https://zenn.dev/syoyo/articles/529ce949121ca4
-* [ ] `05_dedup` MinHash での fuzzy dedup および suffix array による exact dedup で重複除去
+* [x] `05_minhash` MinHash での hash 計算
   * LLM 向け MinHash でテキストの重複除去のメモ https://zenn.dev/syoyo/articles/06eaeb88963b08
-
+* [x] `06_dedup` 05_minhash で求まった hash で dedup
+* [ ] `07_postprocess` training に回せる形に jsonl ファイル群を整理
+      
 ## 正規化
 
 NFKC 形式(sentencepiece の normalizer のデフォルト?)で正規化します.
@@ -164,10 +167,9 @@ TODO:
 - [ ] minhash で false positive 対策のため, Jaccard 係数求める additional step も実装する
   - ただ, データセットサイズが大きいと Jaccard 係数求めて dedup は難しいところであるため, RefinedWeb では Jaccard 係数算出は行っていない
 
-### Suffix array で exact dedup
+### optional: Suffix array で exact dedup
 
 TODO.
-
 
 ## 日本語トークナイザ作成
 
