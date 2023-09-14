@@ -28,7 +28,15 @@ $ python -m pip install -r requirements.txt
 
 ## Training
 
+### Flash Attention
+
+ROCm の場合は現状(2023/09/15 時点) MI250(gfx90a) 以外対応していないようので, off にします.
+
 T.B.W.
+
+## TODO
+
+* [ ] libtorch or llama.cpp で CPU クラスタで incremental pretrain できるようにする.
 
 ## Third party licenses
 

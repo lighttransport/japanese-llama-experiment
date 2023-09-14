@@ -25,6 +25,7 @@
 //
 #include "dedup.hh"
 #include "str-util.hh"
+#include "pbar.hpp"
 
 #define N_GRAM 5
 #define B_BYTES 2 // this should be 2
