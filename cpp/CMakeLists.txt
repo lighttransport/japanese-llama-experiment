@@ -15,7 +15,7 @@ find_package(Threads REQUIRED)
 # look into <thisrepo>/cmake/sanitizers
 find_package(Sanitizers) # Supply -DSANITIZE_ADDRESS
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
