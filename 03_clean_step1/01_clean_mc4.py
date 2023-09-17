@@ -26,7 +26,7 @@ mc4_glob_pattern = "../data/01_normalized/mc4/c4-ja.tfrecord-{:05d}-of-01024.jso
 
 # TODO: checksum
 #checksumfile = "/mnt/disk01/cc100/checksum.sha256"
-dst_mc4_path = Path("../data/02_clean_step1/mc4")
+dst_mc4_path = Path("../data/02_clean_step/mc4")
 
 #checksums = {}
 #with open(checksumfile, "r") as f:

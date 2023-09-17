@@ -11,9 +11,11 @@ from pathlib import Path
 
 import tqdm
 
-nfiles = 1001
-cc100ja_glob_pattern = "../data/01_normalized/cc100ja/cc100-ja.{:05d}.jsonl.zstd"
-dst_cc100ja_path = Path("../data/02_clean_step/cc100ja")
+nfiles = 1024
+mc4_glob_pattern = "../data/01_normalized/mc4/c4-ja.tfrecord-{:05d}-of-01024.json.zstd"
+
+# overwrite
+dst_mc4_path = Path("../data/02_clean_step/mc4")
 
 nprocesses = 12
 
@@ -25,15 +27,15 @@ nprocesses = 12
 #        checksums[tup[1]] = os.path.basename(tup[0])
 
 # Create directory if not exists.
-os.makedirs(dst_cc100ja_path, exist_ok=True)
+os.makedirs(dst_mc4_path, exist_ok=True)
 
 def worker(filepath):
 
     import subprocess
 
-    dst_filename = os.path.join(dst_cc100ja_path, os.path.splitext(os.path.basename(filepath))[0] + ".zstd")
+    dst_filename = os.path.join(dst_mc4_path, os.path.splitext(os.path.basename(filepath))[0] + ".zstd")
 
-    cmd = ['python', 'clean_cc100ja_task.py', filepath, dst_filename]
+    cmd = ['python', 'clean_mc4_task.py', filepath, dst_filename]
 
     p = subprocess.run(cmd)
     if p.returncode != 0:
@@ -65,7 +67,7 @@ if __name__ == '__main__':
         idx = offset + i
         
         # starts with 0.
-        filepath = cc100ja_glob_pattern.format(idx)
+        filepath = mc4_glob_pattern.format(idx)
         inputfiles.append(filepath)
 
     with ThreadPoolExecutor(max_workers=nprocesses) as pool:
@@ -82,4 +84,3 @@ if __name__ == '__main__':
             for f in futures:
                 res = f.result()
                 results.append(res)
-

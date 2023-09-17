@@ -12,7 +12,9 @@ from pathlib import Path
 import tqdm
 
 nfiles = 1001
-cc100ja_glob_pattern = "../data/01_normalized/cc100ja/cc100-ja.{:05d}.jsonl.zstd"
+cc100ja_glob_pattern = "../data/02_clean_step/cc100ja/cc100-ja.{:05d}.jsonl.zstd"
+
+# overwrite
 dst_cc100ja_path = Path("../data/02_clean_step/cc100ja")
 
 nprocesses = 12
@@ -82,4 +84,3 @@ if __name__ == '__main__':
             for f in futures:
                 res = f.result()
                 results.append(res)
-
