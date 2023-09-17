@@ -12,7 +12,7 @@ from pathlib import Path
 import tqdm
 
 nfiles = 1024
-mc4_glob_pattern = "../data/01_normalized/mc4/c4-ja.tfrecord-{:05d}-of-01024.json.zstd"
+mc4_glob_pattern = "../data/02_clean_step/mc4/c4-ja.tfrecord-{:05d}-of-01024.json.zstd"
 
 # overwrite
 dst_mc4_path = Path("../data/02_clean_step/mc4")

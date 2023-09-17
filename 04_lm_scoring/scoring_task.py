@@ -7,6 +7,29 @@ import zstandard
 
 from bunkai import Bunkai
 
+def pp(log_score, length):
+    return 10.0 ** (-log_score / length)
+
+
+def doc_perplexity(model, lines, normalize: bool = False):
+    """
+    lines: tokenized string(delimiter: whitespace)
+    """
+
+    doc_log_score, doc_length = 0, 0
+    for line in lines:
+        if normalize:
+            line = text_normalizer.normalize(line)
+        log_score = model.score(line)
+        length = len(line.split()) + 1
+        doc_log_score += log_score
+        doc_length += length
+
+    return round(pp(doc_log_score, doc_length), 1)
+
+
+
+
 if __name__ == '__main__':
     if len(sys.argv) < 6:
         print("Need ken_lm.arpa sentencepiece.model in_dataset.jsonl.zstd out_datasetname text_keyname_in_json")
@@ -33,6 +56,8 @@ if __name__ == '__main__':
 
         print(sentences)
 
+        lines = []
+
         for sent in sentences:
             # pretrained model in cc_net seems using'NFD' normalization
             # Use https://github.com/facebookresearch/cc_net/blob/main/cc_net/text_normalizer.py
@@ -43,6 +68,7 @@ if __name__ == '__main__':
             toks = sp.encode(text, out_type=str)
 
             tok_input = " ".join(toks)
-            ppl = m.perplexity(tok_input)
-            print(ppl, sent)
+            lines.append(tok_input)
 
+        ppl = doc_perplexity(m, lines, normalize=False)
+        print(ppl, lines)
