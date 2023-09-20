@@ -12,7 +12,7 @@ from pathlib import Path
 import tqdm
 
 nfiles = 123
-oscar_glob_pattern = "../data/01_normalized/OSCAR-2301/ja_meta_part_{}.jsonl.zstd"
+oscar_glob_pattern = "../data/02_clean_step/OSCAR-2301/ja_meta_part_{}.jsonl.zstd"
 
 # only write score value
 dst_oscar_path = Path("../data/04_lm_scoring/OSCAR-2301")
@@ -40,7 +40,7 @@ def worker(filepath):
 
     dst_filename = os.path.join(dst_oscar_path, os.path.splitext(os.path.basename(filepath))[0] + ".zstd")
 
-    text_key = "text" # document key in jsonl
+    text_key = "content" # document key in jsonl
     cmd = ['python', 'scoring_task.py', lm_model_filepath, sp_model_filepath, filepath, dst_filename, text_key ]
 
     p = subprocess.run(cmd)
