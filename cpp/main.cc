@@ -169,6 +169,10 @@ std::vector<std::string> split_lines(const std::string &s) {
     }
   }
 
+  if ((s.size() > 0) && (s_begin < s.size())) {
+    dst.push_back(s.substr(s_begin, s.size() - s_begin));
+  }
+
   return dst;
 }
 
