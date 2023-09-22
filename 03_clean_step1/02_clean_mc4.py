@@ -27,11 +27,11 @@ zstd_comp_level = 4 # default = 3
 nfiles = 1024
 
 # overwrite 01_clean_mc4 result.
-mc4_glob_pattern = "../data/02_clean_step1/mc4/c4-ja.tfrecord-{:05d}-of-01024.json.zstd"
+mc4_glob_pattern = "../data/02_clean_step/mc4/c4-ja.tfrecord-{:05d}-of-01024.json.zstd"
 
 # TODO: checksum
 #checksumfile = "/mnt/disk01/cc100/checksum.sha256"
-dst_mc4_path = Path("../data/02_clean_step1/mc4")
+dst_mc4_path = Path("../data/02_clean_step/mc4")
 
 #checksums = {}
 #with open(checksumfile, "r") as f:

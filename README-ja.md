@@ -94,7 +94,7 @@ https://huggingface.co/datasets/lighttransport/japanese-dataset-cleaned-experime
 * wiki40b ja
 
 の web から収集された public データセットから, 日本語データセットを構築します.
-2 TB ほどストレージを利用します.
+概ね各処理ステップごとにデータを保存するため, 1 TB ほどストレージを利用します.
 
 データセットはすべて jsonl 形式 + zstd 圧縮にしています.
 dedup までは各データセットごとに jsonl + zstd ファイルを用意し,
@@ -108,16 +108,31 @@ dedup 後にひとつの jsonl + zstd のセットにまとめます.
   * 正規化はトークナイズに行うこともできますが, 正規化機能を持たないトークナイザ(llama.cpp など)の対応のために最初のほうで正規化します.
 * [x] `03_clean_step1/` 簡単な pre cleaning
   * URL でフィルタリング
+  * bunkai での文境界判定
   * おかしそうな文章の除去など
   * cc100ja のみ sudachipy で形態素解析解析で追加的にクリーニングしています.
     * 処理時間がかかるためほかのデータセットでは使っていない
     * TODO: jaggar なりの高速形態素解析ライブラリを使う.
-* [ ] `04_lm_scoring/` KenLM による品質スコアリング
+  * 1 CPU でマルチプロセス処理で概ね 1 ~ 2 日かかります.
+* [x] `03_clean_step2/`
+  * 文章の長さでフィルタ
+  * repetition removal. 文章中に繰り返しがあるかの判定
+  * 1 CPU で 4~5 時間程度
+* [x] `04_lm_scoring/` KenLM による品質スコアリング
   * KenLM で日本語文章の品質スコアリングを行うメモ https://zenn.dev/syoyo/articles/529ce949121ca4
+  * 1 CPU で 20 分程度
 * [x] `05_minhash` MinHash での hash 計算
   * LLM 向け MinHash でテキストの重複除去のメモ https://zenn.dev/syoyo/articles/06eaeb88963b08
+  * 16 cores CPU(e.g. Ryzen 3950X) x 1 で概ね 4 時間(57 B tokens データに対して)
 * [x] `06_dedup` 05_minhash で求まった hash で dedup
+  * 1 CPU 1 core で概ね 50 分(57 B tokens データに対して)
 * [ ] `07_postprocess` training に回せる形に jsonl ファイル群を整理
+
+## トークン量(UTF-8 文字数)
+
+* `03_clean_step2` 終了時に 57 B tokens(chars)
+* dedup 後に T.B.D. B tokens
+
       
 ## 正規化
 
@@ -149,7 +164,6 @@ https://huggingface.co/lighttransport/japanese-scoring-model
 
 分かち書き版は 9.5 GB くらいあるので注意ください.
 
-
 (ccnet にも pretrain された KenLM model がありますが, ccnet のほうは NFD 正規化しているような気がしますので, 入力を NFD 正規化しないとうまく Perplexity が算出できないかもしれません)
 
 
@@ -163,7 +177,7 @@ minhash は 5-gram, 20 x 10 buckets(The Pile と同じ構成)でハッシュを 
 
 TODO:
 
-- [ ] RefinedWeb にしたがって 20 x 450 の 9000 ハッシュを計算するようにする. 20 x 10 では dedup 精度が低いっぽい
+- [ ] RefinedWeb にしたがって 20 x 450 の 9000 ハッシュを計算するようにする?
 - [ ] minhash で false positive 対策のため, Jaccard 係数求める additional step も実装する
   - ただ, データセットサイズが大きいと Jaccard 係数求めて dedup は難しいところであるため, RefinedWeb では Jaccard 係数算出は行っていない
 
@@ -178,6 +192,11 @@ T.B.W.
 ## 追加事前学習
 
 T.B.W.
+
+## Known Issue
+
+mc4 データセットを 03_clean_step1 or 03_clean_step2 で処理すると json データが壊れる(Invalid な Unicode 文字データ)ことがあります.
+(python マルチプロセス + bunkai(pytorch) あたりでなにかデータレースが発生?)
 
 ## TODO
 
