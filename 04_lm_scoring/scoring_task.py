@@ -55,8 +55,8 @@ def worker(in_filepath, out_filepath, model, spm, text_key):
 
     results = []
     for i, line in enumerate(lines):
-        if (i % 100) == 0:
-            print("Processed {} / {}\n".format(i, nlines))
+        #if (i % 100) == 0:
+        #    print("Processed {} / {}\n".format(i, nlines))
             
         j = json.loads(line)
 

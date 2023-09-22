@@ -146,7 +146,7 @@ def do_filter(line):
     text_key = "content"
     j = json.loads(line)
 
-    j[text-key] = do_length_filter(j[text_key])
+    j[text_key] = do_length_filter(j[text_key])
     if j[text_key] is None:
         return None
 
