@@ -17,6 +17,7 @@ text_corpus_list = {
 lm_score_dir = "/mnt/disk01/work/japanese-dataset-cleaned-experiment/04_lm_scoring/"
 dedup_dir = "/mnt/disk01/work/japanese-dataset-cleaned-experiment/06_dedup/"
 lm_score_hist_file = "lm_score_hist.json"
+lm_score_hist_bins = 32
 
 out_dir = "/mnt/disk01/work/japanese-dataset-cleaned-experiment/beauty/"
 dataset_basename = "japanese-corpus-{:05d}.jsonl.zstd"
@@ -159,7 +160,7 @@ def compute_lm_score_hist(corpus_list):
 
                 lm_scores.append(score)
 
-    hist, bin_edges = np.histogram(lm_scores, bins=128, density=True)
+    hist, bin_edges = np.histogram(lm_scores, bins=lm_score_hist_bins, density=True)
     print(hist)
     print(bin_edges)
 
