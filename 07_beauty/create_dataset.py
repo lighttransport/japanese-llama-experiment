@@ -4,6 +4,7 @@ import json
 import glob
 import zstandard
 import tqdm
+import numpy as np
 from pathlib import Path
 
 text_base_dir = "/mnt/disk01/work/japanese-dataset-cleaned-experiment/02_clean_step"
@@ -15,6 +16,7 @@ text_corpus_list = {
 
 lm_score_dir = "/mnt/disk01/work/japanese-dataset-cleaned-experiment/04_lm_scoring/"
 dedup_dir = "/mnt/disk01/work/japanese-dataset-cleaned-experiment/06_dedup/"
+lm_score_hist_file = "lm_score_hist.json"
 
 out_dir = "/mnt/disk01/work/japanese-dataset-cleaned-experiment/beauty/"
 dataset_basename = "japanese-corpus-{:05d}.jsonl.zstd"
@@ -127,12 +129,66 @@ def save_to_chunk(out_dir, basefilename, jsons):
             os.makedirs(os.path.join(out_dir, "chunk_{}".format(chunk_i)), exist_ok=True)
 
 
+def compute_lm_score_hist(corpus_list):
+    
+    lm_min = float("inf");
+    lm_max = 0.0
+
+    lm_scores = []
+
+    for corpus in corpus_list:
+        corpus_dirname = text_corpus_list[corpus][0]
+        text_key = text_corpus_list[corpus][1]
+        glob_pattern = text_corpus_list[corpus][2]
+
+        files = glob.glob(os.path.join(text_base_dir, os.path.join(corpus_dirname, glob_pattern)))
+
+        for f in tqdm.tqdm(files):
+            basefilename = os.path.basename(f)
+
+            score_file = Path(os.path.join(os.path.join(lm_score_dir, corpus_dirname), basefilename))
+            if not score_file.exists():
+                print("lm score file not found: ", score_file)
+
+
+            jsons = load_jsonl_zstd(score_file)
+            for j in jsons:
+                score = j["lm_score"]
+                lm_min = min(score, lm_min)
+                lm_max = max(score, lm_max)
+
+                lm_scores.append(score)
+
+    hist, bin_edges = np.histogram(lm_scores, bins=128, density=True)
+    print(hist)
+    print(bin_edges)
+
+    hs = []
+    for h in hist:
+        hs.append(float(h))
+
+    edges = []
+    for e in bin_edges:
+        edges.append(float(e))
+
+    d = {}
+    d["hist"] = hs
+    d["edges"] = edges
+    d["lm_min"] = lm_min
+    d["lm_max"] = lm_max
+
+    with open(lm_score_hist_file, 'w') as f:
+        f.write(json.dumps(d))
 
 
 corpus_list = text_corpus_list
 
 if len(sys.argv) > 1:
     corpus_list = [sys.argv[1]] # for debugging
+
+if not Path(lm_score_hist_file).exists():
+    compute_lm_score_hist(corpus_list)
+    sys.exit(-1)
 
 jsons = []
 for corpus in corpus_list:
@@ -142,10 +198,7 @@ for corpus in corpus_list:
 
     files = glob.glob(os.path.join(text_base_dir, os.path.join(corpus_dirname, glob_pattern)))
 
-    # hack
-    n = 4
-
-    for f in tqdm.tqdm(files[:n]):
+    for f in tqdm.tqdm(files):
         basefilename = os.path.basename(f)
 
         score_file = Path(os.path.join(os.path.join(lm_score_dir, corpus_dirname), basefilename))
@@ -159,6 +212,6 @@ for corpus in corpus_list:
         jsons += merge_jsonl(f, score_file, dedup_file, text_key)
 
 
-    jsons = sorted(jsons, key=lambda j: j["lm_score"])
+jsons = sorted(jsons, key=lambda j: j["lm_score"])
 
-    save_to_chunk(out_dir, dataset_basename, jsons)
+save_to_chunk(out_dir, dataset_basename, jsons)
