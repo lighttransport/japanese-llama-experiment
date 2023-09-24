@@ -5,6 +5,8 @@ import glob
 import zstandard
 import tqdm
 import numpy as np
+import pandas as pd
+import bisect
 from pathlib import Path
 
 text_base_dir = "/mnt/disk01/work/japanese-dataset-cleaned-experiment/02_clean_step"
@@ -16,14 +18,13 @@ text_corpus_list = {
 
 lm_score_dir = "/mnt/disk01/work/japanese-dataset-cleaned-experiment/04_lm_scoring/"
 dedup_dir = "/mnt/disk01/work/japanese-dataset-cleaned-experiment/06_dedup/"
-lm_score_hist_file = "lm_score_hist.json"
-lm_score_hist_bins = 32
+lm_score_bins_file = "lm_score_bins.json"
+lm_score_num_bins = 32
 
 out_dir = "/mnt/disk01/work/japanese-dataset-cleaned-experiment/beauty/"
 dataset_basename = "japanese-corpus-{:05d}.jsonl.zstd"
 
 ndocs_per_file = 25600
-nfiles_in_chunk = 128
 
 zstd_comp_level = 5
 
@@ -83,19 +84,19 @@ def merge_jsonl(text_file, score_file, dedup_file, text_key):
     score_sorted = sorted(jsons, key=lambda j: j["lm_score"])
     return score_sorted 
 
-def save_to_chunk(out_dir, basefilename, jsons):
+def save_remainder_docs(bin_dict, out_dir, basefilename, jsons):
 
+    for bin_idx in bin_dict:
+        js = bin_dict[bin_idx]['jsons']
 
-    nfiles = 0
-    file_i = 0
-    chunk_i = 0
+        if len(js)  == 0:
+            continue
 
-    os.makedirs(os.path.join(out_dir, "chunk_0"), exist_ok=True)
+        file_i = bin_dict[bin_idx]['file_count']
 
-    for i in range(0, len(jsons), ndocs_per_file):
-        js = jsons[i:i+ndocs_per_file]
+        os.makedirs(os.path.join(out_dir, "chunk_{}".format(bin_idx)), exist_ok=True)
+        zfilename = os.path.join(out_dir, os.path.join("chunk_{}".format(bin_idx), basefilename.format(file_i)))
 
-        zfilename = os.path.join(out_dir, os.path.join("chunk_{}".format(chunk_i), basefilename.format(file_i)))
 
         zctx = zstandard.ZstdCompressor(level=zstd_comp_level)
 
@@ -117,21 +118,63 @@ def save_to_chunk(out_dir, basefilename, jsons):
 
         del dst_buf
         del zcompressed
-
-        nfiles += 1
-        file_i += 1
-
-        if nfiles >= nfiles_in_chunk:
-            print("new chunk!")
-            nfiles = 0
-            file_i = 0
-            chunk_i += 1
-
-            os.makedirs(os.path.join(out_dir, "chunk_{}".format(chunk_i)), exist_ok=True)
-
-
-def compute_lm_score_hist(corpus_list):
     
+
+def save_to_chunk(bin_dict, bins, out_dir, basefilename, jsons):
+
+    for i in range(len(jsons)):
+
+        j = jsons[i]
+        lm_score = j['lm_score']
+
+        bin_idx = np.digitize(lm_score, bins)
+
+        # just in case.
+        bin_idx = max(0, bin_idx)
+        bin_idx = min(len(bins)-1, bin_idx)
+
+        bin_dict[bin_idx]['jsons'].append(j)
+
+        ndocs = len(bin_dict[bin_idx]['jsons'])
+
+        if ndocs >= ndocs_per_file:
+
+            file_i = bin_dict[bin_idx]['file_count']
+
+            os.makedirs(os.path.join(out_dir, "chunk_{}".format(bin_idx)), exist_ok=True)
+            zfilename = os.path.join(out_dir, os.path.join("chunk_{}".format(bin_idx), basefilename.format(file_i)))
+
+            js = bin_dict[bin_idx]['jsons']
+
+            zctx = zstandard.ZstdCompressor(level=zstd_comp_level)
+
+            dst_lines = []
+            for j in js:
+                dst_lines.append(json.dumps(j, ensure_ascii=False))
+
+            dst_buf = "\n".join(dst_lines)
+
+            del dst_lines
+
+            # TODO: Use stream
+            zcompressed = zctx.compress(bytes(dst_buf, 'utf-8'))
+
+            print("write to ", zfilename)
+            of = open(zfilename, 'wb')
+            of.write(zcompressed)
+            of.close()
+
+            del dst_buf
+            del zcompressed
+
+            del bin_dict[bin_idx]['jsons']
+            bin_dict[bin_idx]['jsons'] = []
+
+            bin_dict[bin_idx]['file_count'] += 1
+
+
+def compute_lm_score_bins(corpus_list, nbins):
+
     lm_min = float("inf");
     lm_max = 0.0
 
@@ -158,27 +201,26 @@ def compute_lm_score_hist(corpus_list):
                 lm_min = min(score, lm_min)
                 lm_max = max(score, lm_max)
 
+                # NOTE: we can skip adding score to a list for each N(say 10)
+                # This won't hurt the precision of finding bins for larger samples(1M or more).
                 lm_scores.append(score)
 
-    hist, bin_edges = np.histogram(lm_scores, bins=lm_score_hist_bins, density=True)
-    print(hist)
-    print(bin_edges)
+    # Use pandas.qcut to discretize lm_score into equal-sized buckets
+    # https://pandas.pydata.org/docs/reference/api/pandas.qcut.html
 
-    hs = []
-    for h in hist:
-        hs.append(float(h))
+    df, bins = pd.qcut(lm_scores, nbins, duplicates='drop', retbins=True)
+    print(df)
 
-    edges = []
-    for e in bin_edges:
-        edges.append(float(e))
+    bs = []
+    for b in bins:
+        bs.append(float(b))
 
     d = {}
-    d["hist"] = hs
-    d["edges"] = edges
+    d["bins"] = bs
     d["lm_min"] = lm_min
     d["lm_max"] = lm_max
 
-    with open(lm_score_hist_file, 'w') as f:
+    with open(lm_score_bins_file, 'w') as f:
         f.write(json.dumps(d))
 
 
@@ -187,9 +229,19 @@ corpus_list = text_corpus_list
 if len(sys.argv) > 1:
     corpus_list = [sys.argv[1]] # for debugging
 
-if not Path(lm_score_hist_file).exists():
-    compute_lm_score_hist(corpus_list)
-    sys.exit(-1)
+if not Path(lm_score_bins_file).exists():
+    compute_lm_score_bins(corpus_list, lm_score_num_bins)
+
+with open(lm_score_bins_file, 'r') as f:
+    j = json.loads(f.read())
+
+    bins = j['bins']
+
+
+# track jsonl document per bin
+bin_dict = {}
+for i in range(len(bins)):
+    bin_dict[i] = { 'jsons': [], 'file_count': 0 }
 
 jsons = []
 for corpus in corpus_list:
@@ -210,9 +262,8 @@ for corpus in corpus_list:
         if not dedup_file.exists():
             print("dedup file not found: ", dedup_file)
 
-        jsons += merge_jsonl(f, score_file, dedup_file, text_key)
+        jsons = merge_jsonl(f, score_file, dedup_file, text_key)
 
+        save_to_chunk(bin_dict, bins, out_dir, dataset_basename, jsons)
 
-jsons = sorted(jsons, key=lambda j: j["lm_score"])
-
-save_to_chunk(out_dir, dataset_basename, jsons)
+    save_remainder_docs(bin_dict, out_dir, dataset_basename, jsons)
