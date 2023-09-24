@@ -3,7 +3,7 @@
 Chinese LLaMa を参考に, Japanese LLaMa の追加事前学習のチャレンジをするスクリプト集です.
 
 * 日本語データセット構築(クリーニングと dedup(重複除去))
-  * NN G tokens 規模(T.B.D.)
+  * 59 B tokens 規模(NSFW フィルタなし)
 * 日本語データセットで既存の英語ベースの pretain model に対して追加事前学習
   * Chinese LLaMa を参考にしています https://github.com/ymcui/Chinese-LLaMA-Alpaca
 
@@ -21,10 +21,12 @@ Chinese LLaMa を参考に, Japanese LLaMa の追加事前学習のチャレン�
 * [ ] NG ワードなどでの filtering.
   * [ ] HojiChar 利用予定 
 * [x] 品質スコアリング計算 (04_lm_scoring)[04_lm_scoring]
-  * [ ] KenLM の Perplexity で品質を計算
+  * [x] KenLM の Perplexity で品質を計算
 * [x] dedup(重複除去) (05_dedup)[05_dedup]
   * [x] MinHash fuzzy dedup
   * [ ] (optional) suffix array exact dedup
+* [x] 最終的なデータセット形態(Beauty shot)の作成
+  * 品質スコアでソート(bucketize)
 * [ ] 日本語トークナイザ学習
 * [ ] 日本語トークナイザとクリーニングした日本語データセットで追加事前学習(incremental pre-training)
 * [ ] 日本語ファインチューニングデータセットでファインチューニング(Alpaca など)
@@ -45,6 +47,7 @@ LLM(Large Language Model) のフルの学習(事前学習, pretrain)では, 品�
   * clang 推奨
 * Python 3.8+
 * (mini)conda 環境
+* 128 GB CPU mem PC.
 * GPU は不要です.
 
 nlp 処理でライブラリのバージョンなどがかち合うため, 2 つ環境を作り, それぞれで
@@ -91,7 +94,7 @@ https://huggingface.co/datasets/lighttransport/japanese-dataset-cleaned-experime
 * cc100ja
 * mc4 ja
 * OSCAR 2301 ja
-* wiki40b ja
+* TODO: wiki40b ja
 
 の web から収集された public データセットから, 日本語データセットを構築します.
 概ね各処理ステップごとにデータを保存するため, 1 TB ほどストレージを利用します.
@@ -126,12 +129,14 @@ dedup 後にひとつの jsonl + zstd のセットにまとめます.
   * 16 cores CPU(e.g. Ryzen 3950X) x 1 で概ね 4 時間(57 B tokens データに対して)
 * [x] `06_dedup` 05_minhash で求まった hash で dedup
   * 1 CPU 1 core で概ね 50 分(57 B tokens データに対して)
-* [ ] `07_postprocess` training に回せる形に jsonl ファイル群を整理
+* [x] `07_beauty`
+  *  training に回せる形に jsonl ファイル群を整理
+  * lm_score で bucketize(chunk が若いほど品質スコアの高いドキュメント)
 
 ## トークン量(UTF-8 文字数)
 
-* `03_clean_step2` 終了時に 57 B tokens(chars)
-* dedup 後に T.B.D. B tokens
+* dedup 後に 59 B tokens(chars)
+  * NSFW フィルタなどは未適用
 
       
 ## 正規化
@@ -151,7 +156,7 @@ NFD ですと, 日本語では「が」が「か　”」などと濁点が分�
 幸いにも, SlimPajama などの LLaMa の open 再現では NFC を使っています(たとえば, 濁点は分解されない).
 (llama2 はどうなっているか不明)
 
-したがって, SlimPajama データセットで学習したモデルにたいして, NFKC で正規化した日本語データセットで追加事前学習するのは大丈夫と言えそうです.
+したがって, 少なくとも SlimPajama データセットで学習したモデルにたいして, NFKC で正規化した日本語データセットで追加事前学習するのは大丈夫と言えそうです.
 
 ## 品質スコアリング
 
@@ -184,6 +189,10 @@ TODO:
 ### optional: Suffix array で exact dedup
 
 TODO.
+
+## beauty
+
+[07_beauty/README.md](07_beauty/README.md) を参照ください.
 
 ## 日本語トークナイザ作成
 
