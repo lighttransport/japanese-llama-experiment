@@ -12,7 +12,6 @@ import concurrent.futures
 #from multiprocessing import Pool
 from pathlib import Path
 
-import ginza
 import zstandard
 #import text_normalizer
 import url_filtering
@@ -26,7 +25,7 @@ mc4_glob_pattern = "../data/01_normalized/mc4/c4-ja.tfrecord-{:05d}-of-01024.jso
 
 # TODO: checksum
 #checksumfile = "/mnt/disk01/cc100/checksum.sha256"
-dst_mc4_path = Path("../data/02_clean_step1/mc4")
+dst_mc4_path = Path("../data/02_clean_step/mc4")
 
 #checksums = {}
 #with open(checksumfile, "r") as f:
@@ -59,7 +58,7 @@ def count_whitespaces(text):
 
 def do_clean(text: str):
 
-    ws_threshold = 1
+    ws_threshold = 3
 
     # 1. skip text if it does not contain any hiragana.
     if not contains_hiragana(text):
@@ -78,7 +77,7 @@ def do_clean(text: str):
             # ends with period(after normalization, '。' was replaced to '.')
             pass
         elif sent.endswith(")"):
-            # FIXME: May be ascii kaomoji :-)
+            # FIXME: May be ascii kaomoji. e.g. `:-)`
             pass
         elif sent.endswith("!"):
             pass
@@ -186,7 +185,6 @@ def worker(filepath):
 if __name__ == "__main__":
     offset = 0
     n = nfiles
-
 
     if len(sys.argv) > 2:
         offset = int(sys.argv[1])

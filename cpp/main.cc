@@ -169,6 +169,10 @@ std::vector<std::string> split_lines(const std::string &s) {
     }
   }
 
+  if ((s.size() > 0) && (s_begin < s.size())) {
+    dst.push_back(s.substr(s_begin, s.size() - s_begin));
+  }
+
   return dst;
 }
 
@@ -256,6 +260,27 @@ static bool save_json_zstd(const std::string &filepath,
   std::stringstream ss;
 
   ss << j;
+
+  std::string s = ss.str();
+
+  return zstd_compress_to_file(reinterpret_cast<const void *>(s.c_str()),
+                               s.size(), filepath.c_str());
+}
+
+static bool save_jsonl_zstd(const std::string &filepath,
+                           const std::vector<nlohmann::json> &js) {
+  // stringify
+  std::stringstream ss;
+
+  for (size_t i = 0; i < js.size(); i++) {
+    const auto &j = js[i];
+
+    if (i > 0) {
+      ss << "\n";
+    }
+
+    ss << j;
+  }
 
   std::string s = ss.str();
 
@@ -361,7 +386,7 @@ static std::array<MinHashVal<T_BUCKET_SIZE, T_B>, T_N_BUCKETS> decode_hashval(
   return lshs;
 }
 
-static bool dedup_to_files(const std::string &filepath)
+static bool dedup_to_files(const std::string &filepath, const std::string &out_basedir)
 {
   std::vector<glob::fs::path> files = glob::glob({filepath + "/*.zstd", filepath + "/*.zst"});
   std::cout << "num files: " << files.size() << "\n";
@@ -370,13 +395,17 @@ static bool dedup_to_files(const std::string &filepath)
   size_t n_dups = 0;
   size_t n_processed_files = 0;
 
+//#define BUCKETIZED_DEDUP
+
+#if defined(BUCKETIZED_DEDUP)
+#error TODO
+  std::array<std::unordered_set<MinHashVal<BUCKET_SIZE, B_BYTES>, MinHashValHasher<BUCKET_SIZE, B_BYTES>, MinHashValEqual<BUCKET_SIZE, B_BYTES>, N_BUCKETS> hash_stores;
+#else
   std::unordered_set<MinHashVal<BUCKET_SIZE, B_BYTES>, MinHashValHasher<BUCKET_SIZE, B_BYTES>, MinHashValEqual<BUCKET_SIZE, B_BYTES>> hash_store;
+#endif
 
   for (const auto &f : files) {
     std::cout << f << "\n";
-
-    //glob::fs::path outpath = output_basedir / f.filename();
-    //std::cout << "output filepath: " << outpath << "\n";
 
     std::vector<nlohmann::json> jsonl = load_jsonl_zstd(f);
 
@@ -384,7 +413,7 @@ static bool dedup_to_files(const std::string &filepath)
 
     // TODO: threading
     for (size_t i = 0; i < jsonl.size(); i++) {
-      const auto &j = jsonl[i];
+      auto &j = jsonl[i];
 
       std::vector<std::string> minhashes_strs = j["minhashes"];
 
@@ -395,7 +424,17 @@ static bool dedup_to_files(const std::string &filepath)
 
       auto lshs = decode_hashval<N_BUCKETS, BUCKET_SIZE, B_BYTES>(minhashes_strs);
 
+#if defined(BUCKETIZED_DEDUP)
+      // i = bucket index.
+      bool deduped = false;
+#error todo
+#else
       bool deduped = dedup_stream<N_BUCKETS, BUCKET_SIZE, B_BYTES>(lshs, hash_store);
+#endif
+
+      // add "duplicate" flag
+      j["duplicate"] = deduped;
+
       if (deduped) {
         n_dups++;
       }
@@ -408,31 +447,12 @@ static bool dedup_to_files(const std::string &filepath)
     std::cout << "  processed files: " << n_processed_files << " / " << files.size() << "\n";
     std::cout << "  hash_store.size: " << hash_store.size() << "\n";
 
-#if 0
-    std::vector<nlohmann::json> out_jsonl = jsonl;
-
-    std::stringstream ss;
-
-    // strip text
-    for (size_t i = 0; i < out_jsonl.size(); i++) {
-      auto &j = out_jsonl[i];
-
-      if (i > 0) {
-        ss << "\n";
-      }
-
-      ss << j;
-    }
-
-    std::string jsonl_str = ss.str();
-
     // save
-    if (!zstd_compress_to_file(reinterpret_cast<const void *>(jsonl_str.c_str()),
-                               jsonl_str.size(), outpath.c_str())) {
-      std::cerr << "Failed to compress/write file: " << outpath << "\n";
+    glob::fs::path outpath = out_basedir / f.filename();
+    if (!save_jsonl_zstd(outpath, jsonl)) {
+      std::cerr << "Failed to compress/write file: " << f << "\n";
       return false;
     }
-#endif
 
   }
 
@@ -554,7 +574,12 @@ int main(int argc, char **argv) {
     }
   } else if (cmd == "dedup") {
 
-    bool ret = dedup_to_files(argv[2]);
+    if (argc < 4) {
+      std::cerr << "Need <folder> <out_folder>\n";
+      exit(-1);
+    }
+
+    bool ret = dedup_to_files(argv[2], argv[3]);
 
     if (ret) {
       return 0;

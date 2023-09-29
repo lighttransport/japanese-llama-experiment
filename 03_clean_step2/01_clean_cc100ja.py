@@ -14,8 +14,8 @@ import tqdm
 nfiles = 1001
 cc100ja_glob_pattern = "../data/02_clean_step/cc100ja/cc100-ja.{:05d}.jsonl.zstd"
 
-# only write score value
-dst_cc100ja_path = Path("../data/04_lm_scoring/cc100ja")
+# overwrite
+dst_cc100ja_path = Path("../data/02_clean_step/cc100ja")
 
 nprocesses = 12
 
@@ -29,19 +29,13 @@ nprocesses = 12
 # Create directory if not exists.
 os.makedirs(dst_cc100ja_path, exist_ok=True)
 
-
-# cc_100
-lm_model_filepath = "data/lm_sp/ja.arpa.bin"
-sp_model_filepath = "data/lm_sp/ja.sp.model"
-
 def worker(filepath):
 
     import subprocess
 
     dst_filename = os.path.join(dst_cc100ja_path, os.path.splitext(os.path.basename(filepath))[0] + ".zstd")
 
-    text_key = "text" # document key in jsonl
-    cmd = ['python', 'scoring_task.py', lm_model_filepath, sp_model_filepath, filepath, dst_filename, text_key ]
+    cmd = ['python', 'clean_cc100ja_task.py', filepath, dst_filename]
 
     p = subprocess.run(cmd)
     if p.returncode != 0:
