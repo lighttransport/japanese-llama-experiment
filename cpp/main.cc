@@ -2,15 +2,14 @@
 #include <algorithm>
 #include <atomic>
 #include <cassert>
-#include <cstring>
 #include <iostream>
 #include <mutex>
 #include <set>
 #include <string>
 #include <thread>
 #include <vector>
+#include <cstring>
 
-#include "chromiumbase64.h"
 #include "common.h"  // from zstd example
 #include "jagger.h"
 #include "json.hpp"
@@ -18,6 +17,7 @@
 #include "tinysegmenter.hpp"
 #include "utf8proc.h"
 #include "zstd.h"
+#include "chromiumbase64.h"
 
 #define GLOB_USE_GHC_FILESYSTEM
 #include "glob.hpp"
@@ -25,12 +25,13 @@
 //
 #include "dedup.hh"
 #include "str-util.hh"
+#include "pbar.hpp"
 
 #define N_GRAM 5
-#define B_BYTES 2     // this should be 2
-#define N_BUCKETS 20  // this should be 20
+#define B_BYTES 2 // this should be 2
+#define N_BUCKETS 20 // this should be 20
 
-#define BUCKET_SIZE 10  // 10 = The Pile. 450 = RefinedWeb
+#define BUCKET_SIZE 10 // 10 = The Pile. 450 = RefinedWeb
 
 static uint32_t cpu_count() {
   return (std::max)(1u, std::thread::hardware_concurrency());
@@ -42,8 +43,7 @@ static std::string to_base64(const std::vector<uint8_t> &bytes) {
   std::vector<char> dst;
   dst.resize(len);
 
-  size_t n = chromium_base64_encode(
-      dst.data(), reinterpret_cast<const char *>(bytes.data()), bytes.size());
+  size_t n = chromium_base64_encode(dst.data(), reinterpret_cast<const char *>(bytes.data()), bytes.size());
   if (n == MODP_B64_ERROR) {
     return std::string();
   }
@@ -214,13 +214,14 @@ static std::vector<nlohmann::json> load_jsonl_zstd(
   return jsonl;
 }
 
-template <uint32_t N>
+template<uint32_t N>
 void compute_hash(std::vector<nlohmann::json> &jsons,
                   const std::string &text_key) {
   uint32_t nthreads = cpu_count();
 
   std::vector<std::thread> workers;
   std::atomic<uint64_t> i(0ull);
+
 
   for (uint32_t t = 0; t < nthreads; t++) {
     workers.emplace_back(std::thread([&]() {
@@ -233,8 +234,7 @@ void compute_hash(std::vector<nlohmann::json> &jsons,
         // auto lines = split_lines(j[text_key]);
 
         auto ngram = strutil::build_ngram<N_GRAM>(j[text_key]);
-        std::array<MinHashVal<BUCKET_SIZE, B_BYTES>, N_BUCKETS> lshs =
-            compute_lsh<N_GRAM, N_BUCKETS, BUCKET_SIZE>(ngram);
+        std::array<MinHashVal<BUCKET_SIZE, B_BYTES>, N_BUCKETS> lshs = compute_lsh<N_GRAM, N_BUCKETS, BUCKET_SIZE>(ngram);
 
         std::array<std::string, N_BUCKETS> lsh_base64_strs;
         for (size_t i = 0; i < N_BUCKETS; i++) {
@@ -263,12 +263,32 @@ static bool save_json_zstd(const std::string &filepath,
                                s.size(), filepath.c_str());
 }
 
-template <uint32_t N = 5>
+static bool save_jsonl_zstd(const std::string &filepath,
+                           const std::vector<nlohmann::json> &js) {
+  // stringify
+  std::stringstream ss;
+
+  for (size_t i = 0; i < js.size(); i++) {
+    const auto &j = js[i];
+
+    if (i > 0) {
+      ss << "\n";
+    }
+
+    ss << j;
+  }
+
+  std::string s = ss.str();
+
+  return zstd_compress_to_file(reinterpret_cast<const void *>(s.c_str()),
+                               s.size(), filepath.c_str());
+}
+
+template<uint32_t N = 5>
 static bool minhash_files(const std::string &filepath,
                           const std::string &output_basedir,
                           const std::string &text_key) {
-  std::vector<glob::fs::path> files =
-      glob::glob({filepath + "/*.zstd", filepath + "/*.zst"});
+  std::vector<glob::fs::path> files = glob::glob({filepath + "/*.zstd", filepath + "/*.zst"});
   std::cout << "num files: " << files.size() << "\n";
 
   size_t n_documents = 0;
@@ -319,35 +339,33 @@ static bool minhash_files(const std::string &filepath,
     std::string jsonl_str = ss.str();
 
     // save
-    if (!zstd_compress_to_file(
-            reinterpret_cast<const void *>(jsonl_str.c_str()), jsonl_str.size(),
-            outpath.c_str())) {
+    if (!zstd_compress_to_file(reinterpret_cast<const void *>(jsonl_str.c_str()),
+                               jsonl_str.size(), outpath.c_str())) {
       std::cerr << "Failed to compress/write file: " << outpath << "\n";
       return false;
     }
+
   }
 
-  // std::cout << "duplicated " << n_dups << " documents(total " << n_documents
-  // << "). ratio = "
-  //           << 100.0 * double(n_dups) / double(n_documents) << " %\n";
+  //std::cout << "duplicated " << n_dups << " documents(total " << n_documents << "). ratio = "
+  //          << 100.0 * double(n_dups) / double(n_documents) << " %\n";
 
   return true;
 }
 
-template <uint32_t T_N_BUCKETS, uint32_t T_BUCKET_SIZE = BUCKET_SIZE,
-          uint32_t T_B = B_BYTES>
+template<uint32_t T_N_BUCKETS, uint32_t T_BUCKET_SIZE = BUCKET_SIZE, uint32_t T_B = B_BYTES>
 static std::array<MinHashVal<T_BUCKET_SIZE, T_B>, T_N_BUCKETS> decode_hashval(
-    const std::vector<std::string> &minhashes_strs) {
+  const std::vector<std::string> &minhashes_strs)
+{
   std::array<MinHashVal<T_BUCKET_SIZE, T_B>, T_N_BUCKETS> lshs;
 
   std::vector<uint8_t> buf;
 
   for (size_t i = 0; i < T_N_BUCKETS; i++) {
+
     buf.resize(minhashes_strs[i].size());
 
-    size_t n = chromium_base64_decode(reinterpret_cast<char *>(buf.data()),
-                                      minhashes_strs[i].data(),
-                                      minhashes_strs[i].size());
+    size_t n = chromium_base64_decode(reinterpret_cast<char *>(buf.data()), minhashes_strs[i].data(), minhashes_strs[i].size());
     if (n == MODP_B64_ERROR) {
       std::cerr << "failed to decode base64 string\n";
       exit(-1);
@@ -358,32 +376,32 @@ static std::array<MinHashVal<T_BUCKET_SIZE, T_B>, T_N_BUCKETS> decode_hashval(
       exit(-1);
     }
 
-    memcpy(reinterpret_cast<void *>(lshs[i].data()), buf.data(),
-           BUCKET_SIZE * B_BYTES);
+    memcpy(reinterpret_cast<void *>(lshs[i].data()), buf.data(), BUCKET_SIZE * B_BYTES);
   }
 
   return lshs;
 }
 
-static bool dedup_to_files(const std::string &filepath) {
-  std::vector<glob::fs::path> files =
-      glob::glob({filepath + "/*.zstd", filepath + "/*.zst"});
+static bool dedup_to_files(const std::string &filepath, const std::string &out_basedir)
+{
+  std::vector<glob::fs::path> files = glob::glob({filepath + "/*.zstd", filepath + "/*.zst"});
   std::cout << "num files: " << files.size() << "\n";
 
   size_t n_documents = 0;
   size_t n_dups = 0;
   size_t n_processed_files = 0;
 
-  std::unordered_set<MinHashVal<BUCKET_SIZE, B_BYTES>,
-                     MinHashValHasher<BUCKET_SIZE, B_BYTES>,
-                     MinHashValEqual<BUCKET_SIZE, B_BYTES>>
-      hash_store;
+//#define BUCKETIZED_DEDUP
+
+#if defined(BUCKETIZED_DEDUP)
+#error TODO
+  std::array<std::unordered_set<MinHashVal<BUCKET_SIZE, B_BYTES>, MinHashValHasher<BUCKET_SIZE, B_BYTES>, MinHashValEqual<BUCKET_SIZE, B_BYTES>, N_BUCKETS> hash_stores;
+#else
+  std::unordered_set<MinHashVal<BUCKET_SIZE, B_BYTES>, MinHashValHasher<BUCKET_SIZE, B_BYTES>, MinHashValEqual<BUCKET_SIZE, B_BYTES>> hash_store;
+#endif
 
   for (const auto &f : files) {
     std::cout << f << "\n";
-
-    // glob::fs::path outpath = output_basedir / f.filename();
-    // std::cout << "output filepath: " << outpath << "\n";
 
     std::vector<nlohmann::json> jsonl = load_jsonl_zstd(f);
 
@@ -391,21 +409,28 @@ static bool dedup_to_files(const std::string &filepath) {
 
     // TODO: threading
     for (size_t i = 0; i < jsonl.size(); i++) {
-      const auto &j = jsonl[i];
+      auto &j = jsonl[i];
 
       std::vector<std::string> minhashes_strs = j["minhashes"];
 
       if (minhashes_strs.size() != N_BUCKETS) {
-        std::cerr << "`minhashes` must be an array with length " << N_BUCKETS
-                  << ", but got " << minhashes_strs.size() << "\n";
+        std::cerr << "`minhashes` must be an array with length " << N_BUCKETS << ", but got " << minhashes_strs.size() << "\n";
         return false;
       }
 
-      auto lshs =
-          decode_hashval<N_BUCKETS, BUCKET_SIZE, B_BYTES>(minhashes_strs);
+      auto lshs = decode_hashval<N_BUCKETS, BUCKET_SIZE, B_BYTES>(minhashes_strs);
 
-      bool deduped =
-          dedup_stream<N_BUCKETS, BUCKET_SIZE, B_BYTES>(lshs, hash_store);
+#if defined(BUCKETIZED_DEDUP)
+      // i = bucket index.
+      bool deduped = false;
+#error todo
+#else
+      bool deduped = dedup_stream<N_BUCKETS, BUCKET_SIZE, B_BYTES>(lshs, hash_store);
+#endif
+
+      // add "duplicate" flag
+      j["duplicate"] = deduped;
+
       if (deduped) {
         n_dups++;
       }
@@ -413,46 +438,23 @@ static bool dedup_to_files(const std::string &filepath) {
 
     n_processed_files++;
 
-    std::cout << "duplicated " << n_dups << " documents(total " << n_documents
-              << "). ratio = " << 100.0 * double(n_dups) / double(n_documents)
-              << " %\n";
-    std::cout << "  processed files: " << n_processed_files << " / "
-              << files.size() << "\n";
+    std::cout << "duplicated " << n_dups << " documents(total " << n_documents << "). ratio = "
+              << 100.0 * double(n_dups) / double(n_documents) << " %\n";
+    std::cout << "  processed files: " << n_processed_files << " / " << files.size() << "\n";
     std::cout << "  hash_store.size: " << hash_store.size() << "\n";
 
-#if 0
-    std::vector<nlohmann::json> out_jsonl = jsonl;
-
-    std::stringstream ss;
-
-    // strip text
-    for (size_t i = 0; i < out_jsonl.size(); i++) {
-      auto &j = out_jsonl[i];
-
-      if (i > 0) {
-        ss << "\n";
-      }
-
-      ss << j;
-    }
-
-    std::string jsonl_str = ss.str();
-
     // save
-    if (!zstd_compress_to_file(reinterpret_cast<const void *>(jsonl_str.c_str()),
-                               jsonl_str.size(), outpath.c_str())) {
-      std::cerr << "Failed to compress/write file: " << outpath << "\n";
+    glob::fs::path outpath = out_basedir / f.filename();
+    if (!save_jsonl_zstd(outpath, jsonl)) {
+      std::cerr << "Failed to compress/write file: " << f << "\n";
       return false;
     }
-#endif
+
   }
 
-  std::cout << "TOTAL: duplicated " << n_dups << " documents(total "
-            << n_documents
-            << "). ratio = " << 100.0 * double(n_dups) / double(n_documents)
-            << " %\n";
-  std::cout << "  processed files: " << n_processed_files << " / "
-            << files.size() << "\n";
+  std::cout << "TOTAL: duplicated " << n_dups << " documents(total " << n_documents << "). ratio = "
+            << 100.0 * double(n_dups) / double(n_documents) << " %\n";
+  std::cout << "  processed files: " << n_processed_files << " / " << files.size() << "\n";
   std::cout << "  hash_store.size " << hash_store.size() << "\n";
 
   return true;
@@ -463,7 +465,8 @@ static int test_dedup() {
       "吾輩は猫である。名前はまだ無い。どこで生まれたかとんと見当がつかぬ。";
   const char *in1 =
       "吾輩は鳥である。名前はまだ無い。どこで生まれたかとんと見当がつかぬ。";
-  const char *in2 = "東京は晴れ.";
+  const char *in2 =
+      "東京は晴れ.";
 
   auto n0 = strutil::build_ngram<N_GRAM>(in0);
   auto n1 = strutil::build_ngram<N_GRAM>(in1);
@@ -479,11 +482,13 @@ static int test_dedup() {
     std::cout << gram.str() << "\n";
   }
 
-  // LSHDedupConfig conf;
+
+  //LSHDedupConfig conf;
 
   auto lsh0 = compute_lsh<N_GRAM, N_BUCKETS, BUCKET_SIZE>(n0);
   auto lsh1 = compute_lsh<N_GRAM, N_BUCKETS, BUCKET_SIZE>(n1);
   auto lsh2 = compute_lsh<N_GRAM, N_BUCKETS, BUCKET_SIZE>(n2);
+
 
   std::cout << in0 << "\n";
   for (const auto &lsh : lsh0) {
@@ -501,10 +506,7 @@ static int test_dedup() {
     std::cout << strutil::byte_to_hex_string(lsh.data(), lsh.size()) << "\n";
   }
 
-  std::unordered_set<MinHashVal<BUCKET_SIZE, B_BYTES>,
-                     MinHashValHasher<BUCKET_SIZE, B_BYTES>,
-                     MinHashValEqual<BUCKET_SIZE, B_BYTES>>
-      hash_store;
+  std::unordered_set<MinHashVal<BUCKET_SIZE, B_BYTES>, MinHashValHasher<BUCKET_SIZE, B_BYTES>, MinHashValEqual<BUCKET_SIZE, B_BYTES>> hash_store;
 
   if (dedup_stream<N_BUCKETS, BUCKET_SIZE, B_BYTES>(lsh0, hash_store)) {
     std::cout << in0 << " duplicated!\n";
@@ -567,7 +569,13 @@ int main(int argc, char **argv) {
       return -1;
     }
   } else if (cmd == "dedup") {
-    bool ret = dedup_to_files(argv[2]);
+
+    if (argc < 4) {
+      std::cerr << "Need <folder> <out_folder>\n";
+      exit(-1);
+    }
+
+    bool ret = dedup_to_files(argv[2], argv[3]);
 
     if (ret) {
       return 0;

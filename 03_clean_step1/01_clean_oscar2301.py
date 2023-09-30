@@ -25,7 +25,7 @@ oscar_glob_pattern = "../data/01_normalized/OSCAR-2301/ja_meta_part_{}.jsonl.zst
 
 # TODO: checksum
 #checksumfile = "/mnt/disk01/cc100/checksum.sha256"
-dst_oscar_path = Path("../data/02_clean_step1/OSCAR-2301")
+dst_oscar_path = Path("../data/02_clean_step/OSCAR-2301")
 
 #checksums = {}
 #with open(checksumfile, "r") as f:
