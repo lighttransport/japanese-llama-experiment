@@ -8,7 +8,7 @@
 
 #include <vector>
 
-#include "nlohmann/json.hpp"
+#include "json.hpp" // nlohmann json.hpp
 
 namespace huggingface {
 

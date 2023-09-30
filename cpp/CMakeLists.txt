@@ -51,6 +51,7 @@ set(CPP_SOURCES
   dedup.cc
   MurmurHash3.cpp
   simdjson.cpp
+  safetensors.cc
   # fast scalar base64 encoding/decoding
   chromiumbase64.c
   zstd.c
