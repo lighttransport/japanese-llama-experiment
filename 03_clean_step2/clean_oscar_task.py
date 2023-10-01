@@ -143,17 +143,17 @@ def do_repetition_removal(text: str):
     return text
 
 def do_filter(line):
+    text_key = "content"
     j = json.loads(line)
 
-    text = do_length_filter(j["text"])
-    if text is None:
+    j[text_key] = do_length_filter(j[text_key])
+    if j[text_key] is None:
         return None
 
-    text = do_repetition_removal(text)
-    if text is None:
+    j[text_key] = do_repetition_removal(j[text_key])
+    if j[text_key] is None:
         return None
 
-    j["text"] = text
     return j
 
 def worker(in_filepath, out_filepath):
@@ -184,7 +184,7 @@ def worker(in_filepath, out_filepath):
             print("Processed {} / {} (completely filtered {})\n".format(i, nlines, nfiltered))
             
         ret = do_filter(line)
-        if ret is not None:
+        if ret:
             dst_lines.append(json.dumps(ret, ensure_ascii=False))
         else:
             nfiltered += 1

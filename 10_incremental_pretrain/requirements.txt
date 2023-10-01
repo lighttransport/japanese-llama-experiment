@@ -4,5 +4,8 @@ tqdm
 numpy
 jsonargparse[signatures]
 bitsandbytes
+pytest
+scikit-learn
+deeepspeed
 #datasets
 zstandard

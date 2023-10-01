@@ -1,45 +1,28 @@
-データセットを training で利用可能にする最終パス(beauty pass)です.
+## beauty pass
 
-* `02_clean_step` の text json
-* `04_lm_scoring` の ppl jsonl
-* `06_dedup` の dedup flag jsonl
+最終的なデータセットに整形します.
 
-から, 最終的な jsonl.zstd ファイル群を作成します.
+- ドキュメント json
+- lm_score json
+- dedup json
 
-dedup flag のあるものは除去し,
-Perplexity の低い(品質スコアの高い)順でソートし,
-N 行ごとに 1 ファイルにし, M ファイルごとに chunk フォルダを作成します.
+を読み込み, duplicate フラグがあるドキュメントは除去し, lm_score で binnning し, 
+25600 ドキュメントごとに jsonl.zstd を作ります
+1 ファイルは概ね 5 ~ 50 MB 程度になります.
 
+32 chunk(bin) を生成します.
 
-## フォルダレイアウト
+## Step 1
 
-* train
-  * chunk001
-  * chunk002
-  * `...`
-* test
-  * chunk001
-  * chunk002
-  * `...`
-* validation
-  * chunk001
-  * chunk002
-  * `...`
+lm_score で全件ソートだと, データセットが大きくなると処理が面倒になるが(オンメモリで処理できないので, out-of-core でソートが必要), 正確なソーティングは不要なため, binning(chunking) で対応します.
 
-## JSON format
+lm_score 値のみを収集し, lm_sore 配列を pandas qcut で各 bin が等数になるように 32 分割し, その bin 情報(chunk) をファイルに保存します.
 
+## Step 2
 
-* text(string)
-* ppl(float) : Perplexity score
+Step1 の bin 情報を用い, それぞれのドキュメントの lm_score の対応する bin を算出し, その bin(chunk) にデータセットを書き出していきます.
 
-```
-{ "text": "こんにちは、今日は良い天気ですね。", "ppl": 100.0 }
-```
+## TODO
 
-## test
-
-T.B.W.
-
-## validation
-
-T.B.W.
+- より optimal な chunk(bin) 数を求める(32 は適当に選びました)
+- 現状は doc/lm_score/dedup json のマージは行数でしか判断していないため, 各ファイルに id を付与してより reliable にする(clean 時点で document に unique id をアサイン)
