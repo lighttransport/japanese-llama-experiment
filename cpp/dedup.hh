@@ -86,6 +86,16 @@ struct MinHashValEqual
   }
 };
 
+template<uint32_t BUCKET_SIZE = 10, uint32_t B = 2>
+inline bool operator<(const MinHashVal<BUCKET_SIZE, B>& a, const MinHashVal<BUCKET_SIZE, B>& b) {
+  for (uint32_t i = 0; i < a.nitems(); i++) {
+    if (a.vals[i] < b.vals[i]) {
+      return true;
+    }
+  }
+  return false;
+}
+
 #if 0
 template<int N_BUCKETS, int BUCKET_SIZE>
 std::vector<std::vector<uint8_t>> compute_lsh_fast(
@@ -163,6 +173,38 @@ bool dedup_stream(
   }
 
   return duplicated;
+}
+
+struct DocumentItem
+{
+  uint32_t bucket_id{0};
+  uint64_t document_id{0};
+  uint64_t minhash_index{0}; // index to minhash array
+};
+
+template<uint32_t N_BUCKETS, uint32_t BUCKET_SIZE = 10, uint32_t B = 2>
+bool sort_minhashes(
+  const std::vector<std::array<MinHashVal<BUCKET_SIZE, B>, N_BUCKETS>> &lshs,
+  std::vector<DocumentItem> &docs) {
+
+  if ((N_BUCKETS * docs.size()) != lshs.size()) {
+    return false;
+  }
+
+  size_t n = lshs.size();
+
+  // TODO: Use radix sort?
+  std::sort(docs.begin(), docs.end(), [&](const DocumentItem &a, const DocumentItem &b) {
+    uint64_t a_bucket_id = a.bucket_id;
+    uint64_t b_bucket_id = b.bucket_id;
+
+    MinHashVal<BUCKET_SIZE, B> &a_l = lshs[a.minhash_index];
+    MinHashVal<BUCKET_SIZE, B> &b_l = lshs[b.minhash_index];
+
+    return (a_l < b_l);
+  });
+
+  return true;
 }
 
 
