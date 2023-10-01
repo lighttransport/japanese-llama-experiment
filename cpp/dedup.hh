@@ -10,13 +10,6 @@
 #include "str-util.hh"
 #include "MurmurHash3.h"
 
-struct LSHDedupConfig
-{
-  uint32_t n_gram{5};
-  uint32_t n_buckets{20};
-  uint32_t bucket_size{10}; // 450 for higher accuracy(from RefinedWeb)
-};
-
 // cityhash
 template <class T> inline void hash_combine(std::size_t& seed, const T& v)
 {
@@ -54,7 +47,7 @@ struct MinHashVal
   constexpr size_t nitems() const {
     return sizeof(vals) / sizeof(uint32_t);
   }
-    
+
 };
 
 static_assert(sizeof(size_t) == sizeof(uint64_t), "");
