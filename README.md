@@ -139,3 +139,4 @@ Some scripts are licensed under Apache 2.0 or BSD.
 * cc_net: MIT License https://github.com/facebookresearch/cc_net
 * utf8proc: MIT license + permissive Unicode data license https://github.com/JuliaStrings/utf8proc
 * jagger: We choose BSD license. https://www.tkl.iis.u-tokyo.ac.jp/~ynaga/jagger/
+* c4-dataset-script: MIT license. https://github.com/shjwudp/c4-dataset-script

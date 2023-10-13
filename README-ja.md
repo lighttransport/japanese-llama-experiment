@@ -18,8 +18,9 @@ Chinese LLaMa を参考に, Japanese LLaMa の追加事前学習のチャレン�
   * NFKC で正規化
   * 句読点は現在「, .」. 「、。」にしたほうがいいか?
 * [x] 日本語データセットの pre cleaning (03_clean_step1)
+* [ ] bunkai による改行を考慮した文分解.
 * [ ] NG ワードなどでの filtering.
-  * [ ] HojiChar 利用予定 
+  * [ ] HojiChar 利用予定
 * [x] 品質スコアリング計算 (04_lm_scoring)[04_lm_scoring]
   * [x] KenLM の Perplexity で品質を計算
 * [x] dedup(重複除去) (05_dedup)[05_dedup]
@@ -135,10 +136,10 @@ dedup 後にひとつの jsonl + zstd のセットにまとめます.
 
 ## トークン量(UTF-8 文字数)
 
-* dedup 後に 59 B tokens(chars)
+* dedup 後に 59 B chars
   * NSFW フィルタなどは未適用
+  * tokenier 次第ですが, 40 B ~ 50 B tokens 規模になるでしょう.
 
-      
 ## 正規化
 
 NFKC 形式(sentencepiece の normalizer のデフォルト?)で正規化します.
@@ -157,6 +158,46 @@ NFD ですと, 日本語では「が」が「か　”」などと濁点が分�
 (llama2 はどうなっているか不明)
 
 したがって, 少なくとも SlimPajama データセットで学習したモデルにたいして, NFKC で正規化した日本語データセットで追加事前学習するのは大丈夫と言えそうです.
+
+## 文境界判定による文の分解
+
+web からのデータでは文途中に改行が入っていたりします.
+
+bunkai で文を適切に抽出します.
+
+https://github.com/megagonlabs/bunkai
+
+改行対応版(機械学習利用. 処理時間はかかる)を利用します.
+
+```
+$ pip install -U 'bunkai[lb]'
+$ bunkai --model bunkai-model-directory --setup
+```
+
+改行文字は ▁ (U+2581) を利用します.
+
+```py
+
+from pathlib import Path
+
+from bunkai import Bunkai
+
+bunkai = Bunkai(path_model=Path("bunkai-model-directory"))
+for sentence in bunkai("そうなんです▁このように▁pythonライブラリとしても▁使えます！"):
+    print(sentence)
+
+```
+
+
+TODO: cc100ja などによく出現する, 三点リーダー(`...`)を扱えるようにする.
+
+## 繰り返しの除去
+
+TODO
+
+https://github.com/shjwudp/c4-dataset-script
+
+のスクリプトを参考にして除去します.
 
 ## 品質スコアリング
 

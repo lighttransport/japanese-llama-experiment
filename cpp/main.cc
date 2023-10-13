@@ -298,7 +298,7 @@ static bool minhash_files(const std::string &filepath,
   size_t n_documents = 0;
   size_t n_dups = 0;
 
-  LSHDedupConfig conf;
+  //LSHDedupConfig conf;
   std::set<std::vector<uint8_t>> hash_store;
 
   for (const auto &f : files) {
