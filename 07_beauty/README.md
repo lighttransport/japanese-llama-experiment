@@ -26,3 +26,16 @@ Step1 の bin 情報を用い, それぞれのドキュメントの lm_score の
 
 - より optimal な chunk(bin) 数を求める(32 は適当に選びました)
 - 現状は doc/lm_score/dedup json のマージは行数でしか判断していないため, 各ファイルに id を付与してより reliable にする(clean 時点で document に unique id をアサイン)
+
+## Dataset split(optional)
+
+train データセットから validate, test データセット(それぞれ 1 %)を抜き出し, それぞれの dataset を再度 jsonl + zstd 形式で保存します.
+
+huggingface datasets を利用します.
+
+
+### TODO
+
+* shuffle する?
+
+EoL.

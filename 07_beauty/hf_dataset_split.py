@@ -9,7 +9,7 @@ from pathlib import Path
 
 from datasets import load_dataset, DatasetDict
 
-out_dir = " /mnt/data/work/Japanese-CharShu-59B/"
+out_dir = "/mnt/data/work/Japanese-CharShu-59B/"
 dataset_basenames = {
     'train': "japanese-corpus-{:05d}.jsonl.zstd",
     'validate': "japanese-corpus-validate-{:05d}.jsonl.zstd",
