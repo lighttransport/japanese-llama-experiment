@@ -11,24 +11,25 @@ Chinese LLaMa を参考に, Japanese LLaMa の追加事前学習のチャレン�
 
 ## Status
 
-* [x] データセットの取得 (00_download_dataset)[00_download_dataset]
-* [x] データセットの前処理 (01_prepare_dataset)[01_prepare_dataset]
+* [x] データセットの取得 [00_download_dataset](00_download_dataset)
+* [x] データセットの前処理 [01_prepare_dataset](01_prepare_dataset)
   * jsonl + zstd 形式への変換
-* [x] テキストの正規化 (02_normalize)[02_normalize]
+* [x] テキストの正規化 [02_normalize](02_normalize)
   * NFKC で正規化
   * 句読点は現在「, .」. 「、。」にしたほうがいいか?
-* [x] 日本語データセットの pre cleaning (03_clean_step1)
-* [ ] bunkai による改行を考慮した文分解.
+* [x] 日本語データセットの pre cleaning [03_clean_step1](03_clean_step1/)
+* [x] bunkai による改行を考慮した文分解.
 * [ ] NG ワードなどでの filtering.
   * [ ] HojiChar 利用予定
-* [x] 品質スコアリング計算 (04_lm_scoring)[04_lm_scoring]
+* [x] 品質スコアリング計算 [04_lm_scoring](04_lm_scoring)
   * [x] KenLM の Perplexity で品質を計算
-* [x] dedup(重複除去) (05_dedup)[05_dedup]
+* [x] dedup(重複除去) [05_dedup](05_dedup)
   * [x] MinHash fuzzy dedup
   * [ ] (optional) suffix array exact dedup
-* [x] 最終的なデータセット形態(Beauty shot)の作成
+* [x] 最終的なデータセット形態(Beauty shot)の作成 [07_beauty](07_beauty)
   * 品質スコアでソート(bucketize)
-* [ ] 日本語トークナイザ学習
+* [x] 日本語トークナイザ学習
+  * [train_tokenizer](train_tokenizer/) 
 * [ ] 日本語トークナイザとクリーニングした日本語データセットで追加事前学習(incremental pre-training)
 * [ ] 日本語ファインチューニングデータセットでファインチューニング(Alpaca など)
 
