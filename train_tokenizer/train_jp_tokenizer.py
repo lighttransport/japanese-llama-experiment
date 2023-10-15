@@ -1,4 +1,5 @@
-# NOTE: 128 GB CPU mem is required.
+import os
+
 from tokenizers import Tokenizer
 from tokenizers.models import Unigram
 from tokenizers import normalizers
@@ -6,6 +7,7 @@ from tokenizers.trainers import UnigramTrainer
 from tokenizers.pre_tokenizers import Whitespace
 from datasets import load_dataset
 
+os.makedirs('../data', exist_ok=True)
 
 dataset_name = "range3/wikipedia-ja-20230101"
 
@@ -31,5 +33,6 @@ def dataset_iter():
         yield dataset['train'][i]['text']
 
 tokenizer.train_from_iterator(dataset_iter(), trainer)
-tokenizer.save('data/tokenizer-wikipedia-ja.json')
+
+tokenizer.save('../data/tokenizer-wikipedia-ja.json')
 
