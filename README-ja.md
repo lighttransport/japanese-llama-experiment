@@ -4,6 +4,8 @@ Chinese LLaMa を参考に, Japanese LLaMa の追加事前学習のチャレン�
 
 * 日本語データセット構築(クリーニングと dedup(重複除去))
   * 59 B tokens 規模(NSFW フィルタなし)
+  * フィルタリング後 dataset https://huggingface.co/datasets/lighttransport/Japanese-CharShu-59B
+    * 現状は private. リーガルチェック後公開予定
 * 日本語データセットで既存の英語ベースの pretain model に対して追加事前学習
   * Chinese LLaMa を参考にしています https://github.com/ymcui/Chinese-LLaMA-Alpaca
 
@@ -29,7 +31,8 @@ Chinese LLaMa を参考に, Japanese LLaMa の追加事前学習のチャレン�
 * [x] 最終的なデータセット形態(Beauty shot)の作成 [07_beauty](07_beauty)
   * 品質スコアでソート(bucketize)
 * [x] 日本語トークナイザ学習
-  * [train_tokenizer](train_tokenizer/) 
+  * [train_tokenizer](train_tokenizer/)
+  * LLaMa tokenizer へのマージ
 * [ ] 日本語トークナイザとクリーニングした日本語データセットで追加事前学習(incremental pre-training)
 * [ ] 日本語ファインチューニングデータセットでファインチューニング(Alpaca など)
 
@@ -238,11 +241,15 @@ TODO.
 
 ## 日本語トークナイザ作成
 
-T.B.W.
+See [train_tokenizer/](train_tokenizer/)
+
+Unigram で学習し, その後 LLaMa tokenizer に merge します.
 
 ## 追加事前学習
 
-T.B.W.
+TODO
+
+[10_incremental_pretrain/](10_incremental_pretrain/)
 
 ## Known Issue
 
