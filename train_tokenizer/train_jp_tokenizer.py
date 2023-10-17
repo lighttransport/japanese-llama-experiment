@@ -17,7 +17,8 @@ tokenizer.normalizer = normalizers.NFKC()
 
 # TODO: Use [BOS], [EOS] instead of [CLS], [SEP]?
 # NOTE: Chinese LLaMa uses vocab_size=20000
-trainer = UnigramTrainer(special_tokens=["[UNK]", "[CLS]", "[SEP]", "[PAD]", "[MASK]"], unk_token="<UNK>", vocab_size=30000)
+# NOTE: 21000 or less fails to tokenize for wikipedia ja dataset
+trainer = UnigramTrainer(special_tokens=["[UNK]", "[CLS]", "[SEP]", "[PAD]", "[MASK]"], unk_token="<UNK>", vocab_size=21500)
 
 dataset = load_dataset(dataset_name)
 
