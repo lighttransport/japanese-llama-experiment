@@ -6,6 +6,9 @@ Chinese LLaMa を参考に, Japanese LLaMa の追加事前学習のチャレン�
   * 59 B tokens 規模(NSFW フィルタなし)
   * フィルタリング後 dataset https://huggingface.co/datasets/lighttransport/Japanese-CharShu-59B
     * 現状は private. リーガルチェック後公開予定
+
+[charshu](imgs/charshu.png)
+
 * 日本語データセットで既存の英語ベースの pretain model に対して追加事前学習
   * Chinese LLaMa を参考にしています https://github.com/ymcui/Chinese-LLaMA-Alpaca
 
