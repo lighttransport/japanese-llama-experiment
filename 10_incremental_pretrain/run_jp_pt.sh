@@ -19,7 +19,9 @@ output_dir=output_dir
 
 deepspeed_config_file=ds_zero2_no_offload.json
 
-torchrun --nnodes 1 --nproc_per_node 1 incr_pretrain_tinyllama.py \
+ngpus_per_node=2
+
+torchrun --nnodes 1 --nproc_per_node ${ngpus_per_node} incr_pretrain_tinyllama.py \
     --deepspeed ${deepspeed_config_file} \
     --model_name_or_path ${pretrained_model} \
     --tokenizer_name_or_path ${japanese_tokenizer_path} \

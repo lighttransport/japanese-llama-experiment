@@ -61,6 +61,8 @@ from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
 from datasets import load_dataset, concatenate_datasets
 from tokenizers import Tokenizer
 
+jp_vocab_size = 51470
+
 class SavePeftModelCallback(transformers.TrainerCallback):
     def save_model(self, args, state, kwargs):
         if state.best_model_checkpoint is not None:
@@ -554,67 +556,62 @@ def main():
         #        lm_datasets = concatenate_datasets([lm_datasets, processed_dataset["train"]])
         #lm_datasets = lm_datasets.train_test_split(test_size = data_args.validation_split_percentage)
 
-        lm_datasets = []
-
         filename="charshu"
 
         cache_path = os.path.join(data_args.data_cache_dir, filename+f"_{block_size}")
         os.makedirs(cache_path, exist_ok=True)
-        #try:
-        #    processed_dataset = datasets.load_from_disk(cache_path, keep_in_memory=False)
-        #    logger.info(f'training datasets-{filename} has been loaded from disk')
 
-        #    print(processed_dataset)
+        try:
+            processed_dataset = datasets.load_from_disk(cache_path, keep_in_memory=False)
+            logger.info(f'training datasets-{filename} has been loaded from disk')
 
-        #    # hack
-        #    grouped_datasets = processed_dataset.map(
-        #        group_texts,
-        #        batched=True,
-        #        num_proc=data_args.preprocessing_num_workers,
-        #        load_from_cache_file=True,
-        #        keep_in_memory=False,
-        #        cache_file_names = {k: os.path.join(cache_dir, 'grouped.arrow') for k in processed_dataset},
-        #        desc=f"Grouping texts in chunks of {block_size}",
-        #    )
-        #    processed_dataset = grouped_datasets
-        #    processed_dataset.save_to_disk(cache_path)
-        #except Exception:
+            print(processed_dataset)
 
-        raw_dataset = load_dataset(data_args.dataset_dir)
+        except Exception:
 
-        # only use 'text' columns
-        # remove 'lm_score' columns(float), which causes 'float object is not iterable' error in 'group_texts'
-        for split_name in raw_dataset.keys():
-            raw_dataset[split_name] = raw_dataset[split_name].select_columns(['text'])
+            raw_dataset = load_dataset(data_args.dataset_dir)
 
-        print(raw_dataset)
+            # only use 'text' columns
+            # remove 'lm_score' columns(float), which causes 'float object is not iterable' error in 'group_texts'
+            for split_name in raw_dataset.keys():
+                raw_dataset[split_name] = raw_dataset[split_name].select_columns(['text'])
 
-        cache_dir = os.path.join(data_args.data_cache_dir, filename+f"_text_{block_size}")
-        os.makedirs(cache_dir, exist_ok=True)
-        tokenized_dataset = raw_dataset.map(
-            tokenize_function,
-            batched=True,
-            num_proc=data_args.preprocessing_num_workers,
-            remove_columns="text",
-            load_from_cache_file=True,
-            keep_in_memory=False,
-            cache_file_names = {k: os.path.join(cache_dir, 'tokenized.arrow') for k in raw_dataset},
-            desc="Running tokenizer on dataset",
-        )
+            print(raw_dataset)
 
 
-        grouped_datasets = tokenized_dataset.map(
-            group_texts,
-            batched=True,
-            num_proc=data_args.preprocessing_num_workers,
-            load_from_cache_file=True,
-            keep_in_memory=False,
-            cache_file_names = {k: os.path.join(cache_dir, 'grouped.arrow') for k in tokenized_dataset},
-            desc=f"Grouping texts in chunks of {block_size}",
-        )
-        processed_dataset = grouped_datasets
-        processed_dataset.save_to_disk(cache_path)
+            cache_dir = os.path.join(data_args.data_cache_dir, filename+f"_text_{block_size}")
+            os.makedirs(cache_dir, exist_ok=True)
 
+            for split_name in raw_dataset.keys():
+                split_cache_dir = os.path.join(cache_dir, split_name)
+                os.makedirs(split_cache_dir, exist_ok=True)
+            
+            tokenized_dataset = raw_dataset.map(
+                tokenize_function,
+                batched=True,
+                num_proc=data_args.preprocessing_num_workers,
+                remove_columns="text",
+                load_from_cache_file=True,
+                keep_in_memory=False,
+                cache_file_names = {split: os.path.join(os.path.join(cache_dir, split), 'tokenized.arrow') for split in raw_dataset},
+                desc="Running tokenizer on dataset",
+            )
+
+            print(tokenized_dataset)
+            grouped_datasets = tokenized_dataset.map(
+                group_texts,
+                batched=True,
+                num_proc=data_args.preprocessing_num_workers,
+                load_from_cache_file=True,
+                keep_in_memory=False,
+                cache_file_names = {split: os.path.join(os.path.join(cache_dir, split), 'grouped.arrow') for split in tokenized_dataset},
+                desc=f"Grouping texts in chunks of {block_size}",
+            )
+            processed_dataset = grouped_datasets
+            print(processed_dataset)
+            processed_dataset.save_to_disk(cache_path)
+
+        lm_datasets = processed_dataset # splits = 'train', 'validation', 'test'
 
     if training_args.do_train:
         train_dataset = lm_datasets['train']
@@ -687,8 +684,8 @@ def main():
     tokenizer_vocab_size = len(tokenizer)
     logger.info(f"Model vocab size: {model_vocab_size}")
     logger.info(f"Tokenizer vocab size: {tokenizer_vocab_size}")
-    if tokenizer_vocab_size != 55296:
-        raise ValueError(f"The vocab size of tokenizer is {tokenizer_vocab_size}, not 55296. Please use Chinese-LLaMA-2 tokenizer.")
+    if tokenizer_vocab_size != jp_vocab_size:
+        raise ValueError(f"The vocab size of tokenizer is {tokenizer_vocab_size}, not {jp_vocab_size}. Please use Japanese-LLaMA-2 tokenizer.")
     if model_vocab_size != tokenizer_vocab_size:
         logger.info(f"Resize model vocab size to {tokenizer_vocab_size}")
         model.resize_token_embeddings(len(tokenizer))
@@ -801,7 +798,6 @@ def test():
     japanese_tokenizer_dir = "../data/merged_tokenizer_hf"
     base_llama_model = "PY007/TinyLlama-1.1B-intermediate-step-480k-1T"
 
-    jp_vocab_size = 51470
 
     japanese_tokenizer = LlamaTokenizer.from_pretrained(japanese_tokenizer_dir)
     print(japanese_tokenizer)
