@@ -63,6 +63,9 @@ from tokenizers import Tokenizer
 
 jp_vocab_size = 51470
 
+#def get_embed_size(nvocab, m = 64):
+#    return m * (round(nvocab / m) + 1)
+
 class SavePeftModelCallback(transformers.TrainerCallback):
     def save_model(self, args, state, kwargs):
         if state.best_model_checkpoint is not None:
@@ -374,9 +377,9 @@ def main():
         model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
-    if training_args.flash_attn:
-        from flash_attn_patch import replace_llama_attn_with_flash_attn
-        replace_llama_attn_with_flash_attn()
+    #if training_args.flash_attn:
+    #    from flash_attn_patch import replace_llama_attn_with_flash_attn
+    #    replace_llama_attn_with_flash_attn()
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your Python/PyTorch versions.
@@ -444,6 +447,7 @@ def main():
         "cache_dir": model_args.cache_dir,
         "use_fast": model_args.use_fast_tokenizer,
         "revision": model_args.model_revision,
+        "padding": True,
         "use_auth_token": True if model_args.use_auth_token else None,
     }
     #if model_args.tokenizer_name:
@@ -659,6 +663,7 @@ def main():
             else getattr(torch, model_args.torch_dtype)
         )
         device_map = {"":int(os.environ.get("LOCAL_RANK") or 0)}
+        logger.info(f"use_flash_attn:{training_args.flash_attn}")
         model = LlamaForCausalLM.from_pretrained(
             model_args.model_name_or_path,
             from_tf=bool(".ckpt" in model_args.model_name_or_path),
@@ -671,9 +676,11 @@ def main():
             device_map=device_map,
             load_in_4bit=load_in_4bit,
             load_in_8bit=load_in_8bit,
+            use_flash_attention_2=training_args.flash_attn,
             quantization_config=quantization_config,
         )
     else:
+        # TODO: flash_attn settng https://github.com/huggingface/transformers/issues/26878
         model = AutoModelForCausalLM.from_config(config)
         n_params = sum({p.data_ptr(): p.numel() for p in model.parameters()}.values())
         logger.info(f"Training new model from scratch - Total size={n_params/2**20:.2f}M params")
@@ -686,9 +693,19 @@ def main():
     logger.info(f"Tokenizer vocab size: {tokenizer_vocab_size}")
     if tokenizer_vocab_size != jp_vocab_size:
         raise ValueError(f"The vocab size of tokenizer is {tokenizer_vocab_size}, not {jp_vocab_size}. Please use Japanese-LLaMA-2 tokenizer.")
+
     if model_vocab_size != tokenizer_vocab_size:
-        logger.info(f"Resize model vocab size to {tokenizer_vocab_size}")
-        model.resize_token_embeddings(len(tokenizer))
+        new_nvocab_size = len(tokenizer)
+        logger.info(f"Resize model vocab size to {new_nvocab_size}")
+
+    # NOTE: Use at least recent version of transformers and deepspeed as of 2023/10,
+    # otherwise resize may not take effect.
+    #
+    # https://github.com/huggingface/transformers/pull/26387 
+    #
+    # for efficiency, make internal embedding size multiple of 64(51470 => 51520)
+    model.resize_token_embeddings(len(tokenizer), pad_to_multiple_of=64)
+    print(model)
 
     if training_args.peft_path is not None:
         logger.info("Peft from pre-trained model")

@@ -9,3 +9,4 @@ scikit-learn
 deeepspeed
 #datasets
 zstandard
+einops
