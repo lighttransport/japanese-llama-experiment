@@ -50,7 +50,7 @@ print(inputs)
 
 with torch.no_grad():
     output_ids = model.generate(
-        input_ids=inputs["input_ids"].to("cpu"),
+        **inputs,
         max_new_tokens=100,
         min_new_tokens=100,
         do_sample=True,
