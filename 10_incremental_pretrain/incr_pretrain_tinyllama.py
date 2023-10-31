@@ -754,10 +754,14 @@ def main():
                     module = module.to(torch.float16)
     model.print_trainable_parameters()
     logger.info(f"model.modules_to_save: {model.modules_to_save}")
-    old_state_dict = model.state_dict
-    model.state_dict = (
-        lambda self, *_, **__: get_peft_model_state_dict(self, old_state_dict())
-    ).__get__(model, type(model))
+
+    # https://github.com/huggingface/peft/issues/286
+    # updating state_dict fails to save LoRA weight on 2+ save_pretrained().
+    # it looks we can simply uncomment it.
+    #old_state_dict = model.state_dict
+    #model.state_dict = (
+    #    lambda self, *_, **__: get_peft_model_state_dict(self, old_state_dict())
+    #).__get__(model, type(model))
 
     # Initialize our Trainer
     trainer = Trainer(
@@ -849,12 +853,12 @@ def test():
     model = get_peft_model(model, peft_config)
     model.print_trainable_parameters()
 
-    old_state_dict = model.state_dict
+    #old_state_dict = model.state_dict
 
-    # ?
-    model.state_dict = (
-        lambda self, *_, **__: get_peft_model_state_dict(self, old_state_dict())
-    ).__get__(model, type(model))
+    ## ?
+    #model.state_dict = (
+    #    lambda self, *_, **__: get_peft_model_state_dict(self, old_state_dict())
+    #).__get__(model, type(model))
 
 if __name__ == "__main__":
     main()
