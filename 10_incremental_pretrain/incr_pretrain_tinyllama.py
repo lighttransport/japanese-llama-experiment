@@ -513,52 +513,6 @@ def main():
         return result
 
     with training_args.main_process_first(desc="dataset map tokenization and grouping"):
-        # Use huggingface datasets
-        #lm_datasets = []
-        #path = Path(data_args.dataset_dir)
-        #files = [file.name for file in path.glob("*.txt")]
-        #if training_args.debug_mode is True:
-        #    files = [files[0]]
-        #for idx, file in enumerate(files):
-        #    data_file = os.path.join(path, file)
-        #    filename = ''.join(file.split(".")[:-1])
-        #    cache_path = os.path.join(data_args.data_cache_dir, filename+f"_{block_size}")
-        #    os.makedirs(cache_path, exist_ok=True)
-        #    try:
-        #        processed_dataset = datasets.load_from_disk(cache_path, keep_in_memory=False)
-        #        logger.info(f'training datasets-{filename} has been loaded from disk')
-        #    except Exception:
-        #        cache_dir = os.path.join(data_args.data_cache_dir, filename+f"_text_{block_size}")
-        #        os.makedirs(cache_dir, exist_ok=True)
-        #        raw_dataset = load_dataset("text", data_files=data_file, cache_dir=cache_dir, keep_in_memory=False)
-        #        logger.info(f"{file} has been loaded")
-        #        tokenized_dataset = raw_dataset.map(
-        #            tokenize_function,
-        #            batched=True,
-        #            num_proc=data_args.preprocessing_num_workers,
-        #            remove_columns="text",
-        #            load_from_cache_file=True,
-        #            keep_in_memory=False,
-        #            cache_file_names = {k: os.path.join(cache_dir, 'tokenized.arrow') for k in raw_dataset},
-        #            desc="Running tokenizer on dataset",
-        #        )
-        #        grouped_datasets = tokenized_dataset.map(
-        #            group_texts,
-        #            batched=True,
-        #            num_proc=data_args.preprocessing_num_workers,
-        #            load_from_cache_file=True,
-        #            keep_in_memory=False,
-        #            cache_file_names = {k: os.path.join(cache_dir, 'grouped.arrow') for k in tokenized_dataset},
-        #            desc=f"Grouping texts in chunks of {block_size}",
-        #        )
-        #        processed_dataset = grouped_datasets
-        #        processed_dataset.save_to_disk(cache_path)
-        #    if idx == 0:
-        #        lm_datasets = processed_dataset['train']
-        #    else:
-        #        assert lm_datasets.features.type == processed_dataset["train"].features.type
-        #        lm_datasets = concatenate_datasets([lm_datasets, processed_dataset["train"]])
-        #lm_datasets = lm_datasets.train_test_split(test_size = data_args.validation_split_percentage)
 
         filename="charshu"
 
