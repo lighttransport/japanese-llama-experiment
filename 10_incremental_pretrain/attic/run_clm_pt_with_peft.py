@@ -672,6 +672,7 @@ def main():
                     module = module.to(torch.bfloat16)
                 if training_args.fp16 and module.weight.dtype == torch.float32:
                     module = module.to(torch.float16)
+    print(model)
     model.print_trainable_parameters()
     logger.info(f"model.modules_to_save: {model.modules_to_save}")
     old_state_dict = model.state_dict

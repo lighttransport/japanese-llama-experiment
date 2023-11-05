@@ -9,7 +9,8 @@
 
 ## Status
 
-W.I.P.
+* [x] tinyllama 1.1B を incremental pretrain 
+* [ ] llama2 7B 
 
 ## Requirements
 
@@ -26,16 +27,31 @@ $ conda activate jp-llama-pretrain
 $ python -m pip install -r requirements.txt
 ```
 
+
 ## Training
+
+
+### TinyLlama 1.1B
+
+```
+$ bash ./run_jp_tinyllama_train.sh
+```
+
+最初にデータセットの tokenize や grouping を行います.
+結果はキャッシュされます.
+CharShu 59B(展開時180GB) では, これらのキャッシュとして概ね 800 GB を必要とします.
+tokenize 処理には 2~3 時間ほどかかります.
+
+batch=1 で 20 GB ほどメモリを消費します.
 
 ### Flash Attention
 
+transformers に取り込まれた? flash_attn_2 を使います.
 ROCm の場合は現状(2023/09/15 時点) MI250(gfx90a) 以外対応していないようので, off にします.
-
-T.B.W.
 
 ## TODO
 
+* [ ] 学習用にトークナイズなどする処理の別 script 化
 * [ ] libtorch or llama.cpp で CPU クラスタで incremental pretrain できるようにする.
 
 ## Third party licenses

@@ -5,7 +5,9 @@ from transformers import LlamaForCausalLM, LlamaTokenizer
 from transformers.trainer_utils import get_last_checkpoint
 from peft import PeftModel, PeftConfig
 
-checkpoint_dir="../10_incremental_pretrain/output_dir/"
+pretrain_output_dir="Japanese-TinyLlama-1.1B-1.0T"
+
+checkpoint_dir="output_dir/"
 
 last_checkpoint = get_last_checkpoint(checkpoint_dir)
 if last_checkpoint is None and len(os.listdir(checkpoint_dir)) > 0:
@@ -38,27 +40,33 @@ print(model)
 model = PeftModel.from_pretrained(model, peft_model_path)
 print("peft", model)
 
-#for name, module in model.named_modules():
-#    print(name)
-#
-#for name, param in model.named_parameters():
-#    print(name)
 
-text = "西田幾多郎は,"
+# merge
+merged_model = model.merge_and_unload()
+
+# save
+os.makedirs(pretrain_output_dir, exist_ok=True)
+merged_model.save_pretrained(pretrain_output_dir)
+tokenizer.save_pretrained(pretrain_output_dir)
+
+print("Wrote merged pretrained model to: ", pretrain_output_dir)
+
+# eval test
+
+text = "ずんだもんは、 東北に住むかわいい妖精です。"
 inputs = tokenizer(text, add_special_tokens=False, return_tensors="pt")
 print(inputs)
 
 with torch.no_grad():
-    output_ids = model.generate(
+    output_ids = merged_model.generate(
         **inputs,
-        max_new_tokens=100,
-        min_new_tokens=100,
+        max_new_tokens=2048,
+        min_new_tokens=250,
         do_sample=True,
+        num_beams=1,
         temperature=0.8,
+        no_repeat_ngram_size=2,
         pad_token_id=tokenizer.pad_token_id,
         bos_token_id=tokenizer.bos_token_id,
         eos_token_id=tokenizer.eos_token_id
     )
-
-output = tokenizer.decode(output_ids.tolist()[0])
-print(output)
