@@ -826,6 +826,11 @@ def check_vocab_size(params: Params, vocab: Vocab) -> None:
             vocab.added_tokens_list = []
             vocab.vocab_size = vocab.vocab_size_base
             return
+        # japanese tinyllama hack
+        if vocab.vocab_size < params.n_vocab:
+            print("warn: vocab size mismatch, but allow it for Japanese TinyLlama.")
+            return
+
         msg = f"Vocab size mismatch (model has {params.n_vocab}, but {vocab.fname_tokenizer}"
         if vocab.fname_added_tokens is not None:
             msg += f" combined with {vocab.fname_added_tokens}"
