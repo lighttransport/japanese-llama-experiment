@@ -14,7 +14,10 @@ import ascii_filtering
 import clean_text
 import jp_sentence_check
 
-from bunkai import Bunkai
+# Bunkai[lb] is too slow so we disable it for a while.
+# "" to disable CUDA for Bunkai(it uses pytorch)
+#os.environ["CUDA_VISIBLE_DEVICES"] = ""
+#from bunkai import Bunkai
 
 from sudachipy import tokenizer
 from sudachipy import dictionary
@@ -26,7 +29,7 @@ from sudachipy import dictionary
 zstd_comp_level = 4 # default = 3
 
 tokenizer_obj = dictionary.Dictionary().create()
-bunkai = Bunkai()
+#bunkai = Bunkai(path_model=Path("bunkai-model-directory"))
 
 def char_is_hiragana(c):
     return u'\u3040' <= c <= u'\u309F'
@@ -42,6 +45,8 @@ def count_whitespaces(text):
 
     return c
 
+lb_sep = '▁' # U+2581
+
 def do_clean_sudachi(_text: str):
 
     ws_threshold = 3
@@ -50,17 +55,26 @@ def do_clean_sudachi(_text: str):
     if not contains_hiragana(_text):
         return None
 
-    # 2. Use bunkai to decompose text into sentences.
-    sentences = bunkai(_text)
+    ## 2. Use bunkai to decompose text into sentences.
+    #text = _text.replace('\n', lb_sep)
+    #b_sentences = bunkai(text)
+    #sentences = ''.join(b_sentences)
+    #sentences = sentences.replace(lb_sep, '\n')
+    #sentences = sentences.split('\n')
+
+    sentences = _text.split('\n')
 
     results = []
+
 
     #print("sentences:", sentences)
     for sent in sentences:
 
-        sent = sent.lstrip('\n')
+        # 1. skip line if it does not contain any hiragana.
+        if not contains_hiragana(sent):
+            continue
 
-        # 1. remove if the sentence contains some whitespaces
+        # 2. remove if the sentence contains some whitespaces
         if count_whitespaces(sent) >= ws_threshold:
             continue
         elif sent.endswith("..."):
