@@ -7,10 +7,14 @@ from tokenizers import Tokenizer
 from sentencepiece import sentencepiece_model_pb2 as sp_pb2_model
 import sentencepiece as spm
 import argparse
+import unicodedata
 parser = argparse.ArgumentParser()
 
-llama_model = 'openlm-research/open_llama_13b' # default download from huggingface.
-japanese_model = 'tokenizer-cc100-ja.json' # from a file(huggingface tokenizers JSON format).
+#llama_model = 'openlm-research/open_llama_13b' # default download from huggingface.
+llama_model = "PY007/TinyLlama-1.1B-intermediate-step-240k-503b" # tinyllama 1.1B
+
+#japanese_model = 'tokenizer-cc100-ja.json' # from a file(huggingface tokenizers JSON format).
+japanese_model = '../data/tokenizer-wikipedia-ja.json' # from a file(huggingface tokenizers JSON format).
 parser.add_argument('--llama_tokenizer_dir', default=llama_model, type=str)
 parser.add_argument('--japanese_tokenizer_file', default=japanese_model, type=str)
 #parser.add_argument('--japanese_sp_model_file', default='./japanese_sp.model', type=str)
@@ -88,6 +92,9 @@ print(tokenizer.all_special_ids)
 print(tokenizer.special_tokens_map)
 text='''吾輩は猫である。ﾜｶﾞﾊｲ は㈱である.
 The primary use of LLaMA is research on large language models, including'''
+
 print("Test text:\n",text)
-print(f"Tokenized by LLaMA tokenizer:{llama_tokenizer.tokenize(text)}")
-print(f"Tokenized by Japanese-LLaMA tokenizer:{japanese_llama_tokenizer.tokenize(text)}")
+norm_text = unicodedata.normalize('NFKC', text)
+print("Normalized text:\n", norm_text)
+print(f"Tokenized by LLaMA tokenizer:{llama_tokenizer.tokenize(norm_text)}")
+print(f"Tokenized by Japanese-LLaMA tokenizer:{japanese_llama_tokenizer.tokenize(norm_text)}")

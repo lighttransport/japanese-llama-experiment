@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-# coding=utf-8
+# Modification by Light Transport Entertainment Inc.
+
 # Copyright 2020 The HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,7 +32,6 @@ from typing import Optional, List, Dict, Any, Mapping
 from pathlib import Path
 import datasets
 import torch
-from datasets import load_dataset, concatenate_datasets
 
 import transformers
 from transformers import (
@@ -59,7 +58,13 @@ from sklearn.metrics import accuracy_score
 from peft import LoraConfig, TaskType, get_peft_model, PeftModel, get_peft_model_state_dict
 from peft.tuners.lora import LoraLayer
 from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
+from datasets import load_dataset, concatenate_datasets
+from tokenizers import Tokenizer
 
+jp_vocab_size = 51470
+
+#def get_embed_size(nvocab, m = 64):
+#    return m * (round(nvocab / m) + 1)
 
 class SavePeftModelCallback(transformers.TrainerCallback):
     def save_model(self, args, state, kwargs):
@@ -372,9 +377,9 @@ def main():
         model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
-    if training_args.flash_attn:
-        from flash_attn_patch import replace_llama_attn_with_flash_attn
-        replace_llama_attn_with_flash_attn()
+    #if training_args.flash_attn:
+    #    from flash_attn_patch import replace_llama_attn_with_flash_attn
+    #    replace_llama_attn_with_flash_attn()
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your Python/PyTorch versions.
@@ -442,11 +447,12 @@ def main():
         "cache_dir": model_args.cache_dir,
         "use_fast": model_args.use_fast_tokenizer,
         "revision": model_args.model_revision,
+        "padding": True,
         "use_auth_token": True if model_args.use_auth_token else None,
     }
-    if model_args.tokenizer_name:
-        tokenizer = AutoTokenizer.from_pretrained(model_args.tokenizer_name, **tokenizer_kwargs)
-    elif model_args.tokenizer_name_or_path:
+    #if model_args.tokenizer_name:
+    #    tokenizer = AutoTokenizer.from_pretrained(model_args.tokenizer_name, **tokenizer_kwargs)
+    if model_args.tokenizer_name_or_path:
         tokenizer = LlamaTokenizer.from_pretrained(model_args.tokenizer_name_or_path, **tokenizer_kwargs)
     else:
         raise ValueError(
@@ -470,6 +476,7 @@ def main():
                 " before being passed to the model."
             )
         return output
+
     if data_args.block_size is None:
         block_size = tokenizer.model_max_length
         if block_size > 1024:
@@ -490,6 +497,7 @@ def main():
     # Main data processing function that will concatenate all texts from our dataset and generate chunks of block_size.
     def group_texts(examples):
         # Concatenate all texts.
+        #print(examples.keys())
         concatenated_examples = {k: list(chain(*examples[k])) for k in examples.keys()}
         total_length = len(concatenated_examples[list(examples.keys())[0]])
         # We drop the small remainder, we could add padding if the model supported it instead of this drop, you can
@@ -503,52 +511,65 @@ def main():
         }
         result["labels"] = result["input_ids"].copy()
         return result
+
     with training_args.main_process_first(desc="dataset map tokenization and grouping"):
-        lm_datasets = []
-        path = Path(data_args.dataset_dir)
-        files = [file.name for file in path.glob("*.txt")]
-        if training_args.debug_mode is True:
-            files = [files[0]]
-        for idx, file in enumerate(files):
-            data_file = os.path.join(path, file)
-            filename = ''.join(file.split(".")[:-1])
-            cache_path = os.path.join(data_args.data_cache_dir, filename+f"_{block_size}")
-            os.makedirs(cache_path, exist_ok=True)
-            try:
-                processed_dataset = datasets.load_from_disk(cache_path, keep_in_memory=False)
-                logger.info(f'training datasets-{filename} has been loaded from disk')
-            except Exception:
-                cache_dir = os.path.join(data_args.data_cache_dir, filename+f"_text_{block_size}")
-                os.makedirs(cache_dir, exist_ok=True)
-                raw_dataset = load_dataset("text", data_files=data_file, cache_dir=cache_dir, keep_in_memory=False)
-                logger.info(f"{file} has been loaded")
-                tokenized_dataset = raw_dataset.map(
-                    tokenize_function,
-                    batched=True,
-                    num_proc=data_args.preprocessing_num_workers,
-                    remove_columns="text",
-                    load_from_cache_file=True,
-                    keep_in_memory=False,
-                    cache_file_names = {k: os.path.join(cache_dir, 'tokenized.arrow') for k in raw_dataset},
-                    desc="Running tokenizer on dataset",
-                )
-                grouped_datasets = tokenized_dataset.map(
-                    group_texts,
-                    batched=True,
-                    num_proc=data_args.preprocessing_num_workers,
-                    load_from_cache_file=True,
-                    keep_in_memory=False,
-                    cache_file_names = {k: os.path.join(cache_dir, 'grouped.arrow') for k in tokenized_dataset},
-                    desc=f"Grouping texts in chunks of {block_size}",
-                )
-                processed_dataset = grouped_datasets
-                processed_dataset.save_to_disk(cache_path)
-            if idx == 0:
-                lm_datasets = processed_dataset['train']
-            else:
-                assert lm_datasets.features.type == processed_dataset["train"].features.type
-                lm_datasets = concatenate_datasets([lm_datasets, processed_dataset["train"]])
-        lm_datasets = lm_datasets.train_test_split(test_size = data_args.validation_split_percentage)
+
+        filename="charshu"
+
+        cache_path = os.path.join(data_args.data_cache_dir, filename+f"_{block_size}")
+        os.makedirs(cache_path, exist_ok=True)
+
+        try:
+            processed_dataset = datasets.load_from_disk(cache_path, keep_in_memory=False)
+            logger.info(f'training datasets-{filename} has been loaded from disk')
+
+            print(processed_dataset)
+
+        except Exception:
+
+            raw_dataset = load_dataset(data_args.dataset_dir)
+
+            # only use 'text' columns
+            # remove 'lm_score' columns(float), which causes 'float object is not iterable' error in 'group_texts'
+            for split_name in raw_dataset.keys():
+                raw_dataset[split_name] = raw_dataset[split_name].select_columns(['text'])
+
+            print(raw_dataset)
+
+
+            cache_dir = os.path.join(data_args.data_cache_dir, filename+f"_text_{block_size}")
+            os.makedirs(cache_dir, exist_ok=True)
+
+            for split_name in raw_dataset.keys():
+                split_cache_dir = os.path.join(cache_dir, split_name)
+                os.makedirs(split_cache_dir, exist_ok=True)
+            
+            tokenized_dataset = raw_dataset.map(
+                tokenize_function,
+                batched=True,
+                num_proc=data_args.preprocessing_num_workers,
+                remove_columns="text",
+                load_from_cache_file=True,
+                keep_in_memory=False,
+                cache_file_names = {split: os.path.join(os.path.join(cache_dir, split), 'tokenized.arrow') for split in raw_dataset},
+                desc="Running tokenizer on dataset",
+            )
+
+            print(tokenized_dataset)
+            grouped_datasets = tokenized_dataset.map(
+                group_texts,
+                batched=True,
+                num_proc=data_args.preprocessing_num_workers,
+                load_from_cache_file=True,
+                keep_in_memory=False,
+                cache_file_names = {split: os.path.join(os.path.join(cache_dir, split), 'grouped.arrow') for split in tokenized_dataset},
+                desc=f"Grouping texts in chunks of {block_size}",
+            )
+            processed_dataset = grouped_datasets
+            print(processed_dataset)
+            processed_dataset.save_to_disk(cache_path)
+
+        lm_datasets = processed_dataset # splits = 'train', 'validation', 'test'
 
     if training_args.do_train:
         train_dataset = lm_datasets['train']
@@ -596,6 +617,7 @@ def main():
             else getattr(torch, model_args.torch_dtype)
         )
         device_map = {"":int(os.environ.get("LOCAL_RANK") or 0)}
+        logger.info(f"use_flash_attn:{training_args.flash_attn}")
         model = LlamaForCausalLM.from_pretrained(
             model_args.model_name_or_path,
             from_tf=bool(".ckpt" in model_args.model_name_or_path),
@@ -608,9 +630,11 @@ def main():
             device_map=device_map,
             load_in_4bit=load_in_4bit,
             load_in_8bit=load_in_8bit,
+            use_flash_attention_2=training_args.flash_attn,
             quantization_config=quantization_config,
         )
     else:
+        # TODO: flash_attn settng https://github.com/huggingface/transformers/issues/26878
         model = AutoModelForCausalLM.from_config(config)
         n_params = sum({p.data_ptr(): p.numel() for p in model.parameters()}.values())
         logger.info(f"Training new model from scratch - Total size={n_params/2**20:.2f}M params")
@@ -621,11 +645,21 @@ def main():
     tokenizer_vocab_size = len(tokenizer)
     logger.info(f"Model vocab size: {model_vocab_size}")
     logger.info(f"Tokenizer vocab size: {tokenizer_vocab_size}")
-    if tokenizer_vocab_size != 55296:
-        raise ValueError(f"The vocab size of tokenizer is {tokenizer_vocab_size}, not 55296. Please use Chinese-LLaMA-2 tokenizer.")
+    if tokenizer_vocab_size != jp_vocab_size:
+        raise ValueError(f"The vocab size of tokenizer is {tokenizer_vocab_size}, not {jp_vocab_size}. Please use Japanese-LLaMA-2 tokenizer.")
+
     if model_vocab_size != tokenizer_vocab_size:
-        logger.info(f"Resize model vocab size to {tokenizer_vocab_size}")
-        model.resize_token_embeddings(len(tokenizer))
+        new_nvocab_size = len(tokenizer)
+        logger.info(f"Resize model vocab size to {new_nvocab_size}")
+
+    # NOTE: Use at least recent version of transformers and deepspeed as of 2023/10,
+    # otherwise resize may not take effect.
+    #
+    # https://github.com/huggingface/transformers/pull/26387 
+    #
+    # for efficiency, make internal embedding size multiple of 64(51470 => 51520)
+    model.resize_token_embeddings(len(tokenizer), pad_to_multiple_of=64)
+    print(model)
 
     if training_args.peft_path is not None:
         logger.info("Peft from pre-trained model")
@@ -674,10 +708,14 @@ def main():
                     module = module.to(torch.float16)
     model.print_trainable_parameters()
     logger.info(f"model.modules_to_save: {model.modules_to_save}")
-    old_state_dict = model.state_dict
-    model.state_dict = (
-        lambda self, *_, **__: get_peft_model_state_dict(self, old_state_dict())
-    ).__get__(model, type(model))
+
+    # https://github.com/huggingface/peft/issues/286
+    # updating state_dict fails to save LoRA weight on 2+ save_pretrained().
+    # it looks we can simply uncomment it.
+    #old_state_dict = model.state_dict
+    #model.state_dict = (
+    #    lambda self, *_, **__: get_peft_model_state_dict(self, old_state_dict())
+    #).__get__(model, type(model))
 
     # Initialize our Trainer
     trainer = Trainer(
@@ -731,5 +769,51 @@ def main():
         trainer.save_metrics("eval", metrics)
 
 
+def test():
+    japanese_tokenizer_dir = "../data/merged_tokenizer_hf"
+    base_llama_model = "PY007/TinyLlama-1.1B-intermediate-step-480k-1T"
+
+
+    japanese_tokenizer = LlamaTokenizer.from_pretrained(japanese_tokenizer_dir)
+    print(japanese_tokenizer)
+
+    assert len(japanese_tokenizer) == jp_vocab_size
+
+    model = LlamaForCausalLM.from_pretrained(base_llama_model)
+    model_vocab_size = model.get_output_embeddings().weight.size(0)
+    print(model_vocab_size)
+    model.resize_token_embeddings(len(japanese_tokenizer))
+
+    #model.print_trainable_parameters()
+    #print(model.p_vocab_size)
+
+    # comma separated string
+    trainable = "q_proj,v_proj"
+    lora_rank = 8
+    lora_dropout = 0.1
+    lora_alpha = 32.0
+    modules_to_save = None # or str
+
+    target_modules = trainable.split(',')
+    peft_config = LoraConfig(
+        task_type=TaskType.CAUSAL_LM,
+        target_modules=target_modules,
+        r=lora_rank,
+        inference_mode=False,
+        lora_alpha=lora_alpha,
+        lora_dropout=lora_dropout,
+        modules_to_save=modules_to_save)
+
+    model = get_peft_model(model, peft_config)
+    model.print_trainable_parameters()
+
+    #old_state_dict = model.state_dict
+
+    ## ?
+    #model.state_dict = (
+    #    lambda self, *_, **__: get_peft_model_state_dict(self, old_state_dict())
+    #).__get__(model, type(model))
+
 if __name__ == "__main__":
     main()
+

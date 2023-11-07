@@ -36,3 +36,4 @@ zstd.c was created using https://github.com/facebook/zstd/tree/dev/build/single_
 * stack_container.h: BSD license
 * sqlite3: public domain.
 * pbar: Apache 2.0 https://github.com/estshorter/pbar
+* lz4: 2-clause BSD.

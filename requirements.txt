@@ -19,3 +19,4 @@ tld
 tqdm
 numpy
 pandas
+lightning

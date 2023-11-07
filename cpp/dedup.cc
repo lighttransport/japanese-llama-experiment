@@ -7,6 +7,7 @@
 #include <thread>
 #include <mutex>
 #include <mutex>
+#include <algorithm>
 
 #include "dedup.hh"
 
@@ -55,4 +56,3 @@ bool dedup_stream(
   return duplicated;
 
 }
-

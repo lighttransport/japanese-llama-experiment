@@ -1,4 +1,9 @@
-
+//
+// TODO: 
+// - [ ] Use fully streaming processing approach to save memory usage
+//       (zstd decode, json decode, process task, json encode, zstd encode)
+// - [ ] Efficient dedup by creating folder per MSB and use sorting to save memory.
+//
 #include <algorithm>
 #include <atomic>
 #include <cassert>
@@ -16,7 +21,7 @@
 #include "simdjson.h"
 #include "tinysegmenter.hpp"
 #include "utf8proc.h"
-#include "zstd.h"
+#include "./zstd.h"
 #include "chromiumbase64.h"
 
 #define GLOB_USE_GHC_FILESYSTEM
@@ -118,9 +123,95 @@ static bool zstd_compress_to_file(const void *buf, const size_t size,
   return true;
 }
 
+constexpr size_t kMaxSize = 1024ull * 1024ull * 1024ull * 128ull; // up to 128GB when uncompressed.
+
+static void decompressFile_orDie(const char* fname,
+  std::vector<uint8_t> &dst,
+  size_t maxSize = kMaxSize)
+{
+    FILE* const fin  = fopen_orDie(fname, "rb");
+    size_t const buffInSize = ZSTD_DStreamInSize();
+    void*  const buffIn  = malloc_orDie(buffInSize);
+    //FILE* const fout = stdout;
+    size_t const buffOutSize = ZSTD_DStreamOutSize();  /* Guarantee to successfully flush at least one complete compressed block in all circumstances. */
+    void*  const buffOut = malloc_orDie(buffOutSize);
+
+    ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+    CHECK(dctx != NULL, "ZSTD_createDCtx() failed!");
+
+    /* This loop assumes that the input file is one or more concatenated zstd
+     * streams. This example won't work if there is trailing non-zstd data at
+     * the end, but streaming decompression in general handles this case.
+     * ZSTD_decompressStream() returns 0 exactly when the frame is completed,
+     * and doesn't consume input after the frame.
+     */
+    size_t const toRead = buffInSize;
+    size_t read;
+    size_t lastRet = 0;
+    int isEmpty = 1;
+    while ( (read = fread_orDie(buffIn, toRead, fin)) ) {
+        isEmpty = 0;
+        ZSTD_inBuffer input = { buffIn, read, 0 };
+        /* Given a valid frame, zstd won't consume the last byte of the frame
+         * until it has flushed all of the decompressed data of the frame.
+         * Therefore, instead of checking if the return code is 0, we can
+         * decompress just check if input.pos < input.size.
+         */
+        while (input.pos < input.size) {
+            ZSTD_outBuffer output = { buffOut, buffOutSize, 0 };
+            /* The return code is zero if the frame is complete, but there may
+             * be multiple frames concatenated together. Zstd will automatically
+             * reset the context when a frame is complete. Still, calling
+             * ZSTD_DCtx_reset() can be useful to reset the context to a clean
+             * state, for instance if the last decompression call returned an
+             * error.
+             */
+            size_t const ret = ZSTD_decompressStream(dctx, &output , &input);
+            CHECK_ZSTD(ret);
+            //fwrite_orDie(buffOut, output.pos, fout);
+            size_t dst_loc = dst.size();
+            if (dst_loc + output.pos >= maxSize) {
+              fprintf(stderr, "zstd data too large. exceeds %" PRIu64 ".\n", dst_loc + output.pos);
+              
+            }
+            dst.resize(dst.size() + output.pos);
+            memcpy(dst.data() + dst_loc, buffOut, output.pos);
+            lastRet = ret;
+        }
+    }
+
+    if (isEmpty) {
+        fprintf(stderr, "input is empty\n");
+        exit(1);
+    }
+
+    if (lastRet != 0) {
+        /* The last return value from ZSTD_decompressStream did not end on a
+         * frame, but we reached the end of the file! We assume this is an
+         * error, and the input was truncated.
+         */
+        fprintf(stderr, "EOF before end of stream: %zu\n", lastRet);
+        exit(1);
+    }
+
+    ZSTD_freeDCtx(dctx);
+    fclose_orDie(fin);
+    //fclose_orDie(fout);
+    free(buffIn);
+    free(buffOut);
+}
+
+static std::string zstd_decompress_stream(const char *fname) {
+  std::vector<uint8_t> data;
+  decompressFile_orDie(fname, data, kMaxSize);
+
+  return std::string(reinterpret_cast<char *>(data.data()), data.size());
+}
+
 static std::string zstd_decompress(const char *fname) {
   size_t cSize;
   void *const cBuff = mallocAndLoadFile_orDie(fname, &cSize);
+
   /* Read the content size from the frame header. For simplicity we require
    * that it is always present. By default, zstd will write the content size
    * in the header when it is known. If you can't guarantee that the frame
@@ -129,7 +220,12 @@ static std::string zstd_decompress(const char *fname) {
    */
   unsigned long long const rSize = ZSTD_getFrameContentSize(cBuff, cSize);
   CHECK(rSize != ZSTD_CONTENTSIZE_ERROR, "%s: not compressed by zstd!", fname);
-  CHECK(rSize != ZSTD_CONTENTSIZE_UNKNOWN, "%s: original size unknown!", fname);
+  //CHECK(rSize != ZSTD_CONTENTSIZE_UNKNOWN, "%s: original size unknown!", fname);
+  if (rSize == ZSTD_CONTENTSIZE_UNKNOWN) {
+    // Use streaming API
+    free(cBuff);
+    return zstd_decompress_stream(fname);
+  } 
 
   void *const rBuff = malloc_orDie((size_t)rSize);
 
@@ -298,7 +394,7 @@ static bool minhash_files(const std::string &filepath,
   size_t n_documents = 0;
   size_t n_dups = 0;
 
-  LSHDedupConfig conf;
+  //LSHDedupConfig conf;
   std::set<std::vector<uint8_t>> hash_store;
 
   for (const auto &f : files) {
