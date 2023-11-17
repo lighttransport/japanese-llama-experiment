@@ -11,6 +11,7 @@ Chinese LLaMa を参考に, Japanese LLaMa の追加事前学習のチャレン�
 
 * 日本語データセットで既存の英語ベースの pretain model に対して追加事前学習
   * Chinese LLaMa を参考にしています https://github.com/ymcui/Chinese-LLaMA-Alpaca
+  * [x] TinyLLama 1.1B
 
 の二本立てで構成されています.
 
@@ -200,7 +201,7 @@ TODO: cc100ja などによく出現する, 三点リーダー(`...`)を扱える
 
 ## 繰り返しの除去
 
-TODO
+文章中の繰り返しの除去は,
 
 https://github.com/shjwudp/c4-dataset-script
 
@@ -250,9 +251,13 @@ Unigram で学習し, その後 LLaMa tokenizer に merge します.
 
 ## 追加事前学習
 
-TODO
-
 [10_incremental_pretrain/](10_incremental_pretrain/)
+
+を参照ください. 現在(2023/11/02)は TinyLLama 1.1B で動作を確認しています.
+
+## SFT fine tuning
+
+TODO.
 
 ## Known Issue
 
@@ -261,10 +266,12 @@ mc4 データセットを 03_clean_step1 or 03_clean_step2 で処理すると js
 
 ## TODO
 
-* 追加学習ではなく, SlimPajama と組み合わせ一から事前学習する
+* [ ] 追加学習ではなく, SlimPajama と組み合わせ一から事前学習する
   * => あとから日本語知識を付け足すよりは性能がよくなるはず...(学習のコストはかかるが)
-* 照応解析や構文解析を行い, よりよい日本語文章の判定を行う
+* [ ] 照応解析や構文解析を行い, よりよい日本語文章の判定を行う
   * コンテキストが違う文がミックスされているのをはじくなど
+* [ ] 日本語向け line-wise filtering(RefinedWeb 参照) の実装
+* [ ] HojiChar の取り込み
 
 ## License
 
