@@ -261,8 +261,8 @@ TODO.
 
 ## Known Issue
 
-mc4 データセットを 03_clean_step1 or 03_clean_step2 で処理すると json データが壊れる(Invalid な Unicode 文字データ)ことがあります.
-(python マルチプロセス + bunkai(pytorch) あたりでなにかデータレースが発生?)
+* [ ] Bunkai で quote などがうまく扱えない https://github.com/megagonlabs/bunkai/issues/34
+* [ ] mc4 データセットを 03_clean_step1 or 03_clean_step2 で処理すると json データが壊れる(Invalid な Unicode 文字データ)ことがあります. (python マルチプロセス + bunkai(pytorch) あたりでなにかデータレースが発生?)
 
 ## TODO
 
