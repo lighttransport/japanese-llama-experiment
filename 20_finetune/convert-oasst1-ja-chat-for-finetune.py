@@ -1,9 +1,26 @@
+# - 句点の変換
 # - prompt の置き換え
 # - メッセージ長チェック
+
+import re
+import unicodedata
 
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import os
 import json
+
+UNICODE_PUNCT = {
+    # FIXME: Japanese TinyLlama specific. 他の日本語 LLM model では変換不要
+    "，": ",",
+    "。": ".",
+    "、": ",",
+    }
+
+UNICODE_PUNCT_RE = re.compile(f"[{''.join(UNICODE_PUNCT.keys())}]")
+
+
+def replace_unicode_punct(text: str) -> str:
+    return "".join((UNICODE_PUNCT.get(c, c) for c in text))
 
 # -4 for safety
 max_len = 2048 - 4
@@ -25,6 +42,8 @@ for d in j:
 
     msg = "\n".join(msgs)
 
+    msg = replace_unicode_punct(msg)
+
     input_ids = tokenizer.encode(msg)
 
     # length check
@@ -40,7 +59,7 @@ outfname = "oasst1-ja-chat-multiturn-sft.jsonl"
 outj = []
 for item in conversations:
     m = {'text_ja': item}
-    outj.append(json.dumps(m))
+    outj.append(json.dumps(m, ensure_ascii=False))
 
 outbuf = "\n".join(outj)
 
