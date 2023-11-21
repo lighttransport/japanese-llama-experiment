@@ -366,7 +366,7 @@ def make_data_module(tokenizer: transformers.PreTrainedTokenizer, args) -> Dict:
         - hh-rlhf (Anthropic), 160800 examples
         - longform, 23.7k examples
         - oasst1 (OpenAssistant) primary message tree only, 9,846 examples
-        - oasst1-ja Japanese translation of oasst1. 89k samples
+        - oasst1-ja Japanese translation of oasst1. primary message tree only. 7644 samples.
 
     Coming soon:
         - unnatural instructions core, 66010 examples
@@ -392,7 +392,8 @@ def make_data_module(tokenizer: transformers.PreTrainedTokenizer, args) -> Dict:
         elif dataset_name == 'oasst1':
             return load_dataset("timdettmers/openassistant-guanaco")
         elif dataset_name == 'oasst1-ja':
-            return load_dataset("kunishou/oasst1-89k-ja")
+            # load from disk
+            return load_dataset("json", data_files={"train": "oasst1-ja-chat-multiturn-sft.jsonl"})
         elif dataset_name == "OpenAssistant/oasst_top1_2023-08-25":
             return load_dataset("OpenAssistant/oasst_top1_2023-08-25")
         elif dataset_name == 'vicuna':
