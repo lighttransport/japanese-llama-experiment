@@ -49,6 +49,16 @@ batch=1 で 20 GB ほどメモリを消費します.
 transformers に取り込まれた? flash_attn_2 を使います.
 ROCm の場合は現状(2023/09/15 時点) MI250(gfx90a) 以外対応していないようので, off にします.
 
+## checkpoint を publish
+
+checkpokpoint から merge して publish するスクリプト publish_checkpoint.py
+
+model.embedding_size != tokenizer.nvocab のため, llama.cpp などほかのツールではこのままだとうまく扱えないため, うまく利用できるように, model をマージ後, tokenizer の nvocab で model.embedding をリサイズしています.
+(これにより特定の HW では性能が低下するかもしれません)
+
+TODO: model の embedding と, tokenizer の  nvocab を 64 の倍数に合わせる. あとから処理するといろいろめんどいので, Japanese tokenizer を作成の時点で 64 の倍数にしておくのが理想...
+
+
 ## TODO
 
 * [ ] 学習用にトークナイズなどする処理の別 script 化

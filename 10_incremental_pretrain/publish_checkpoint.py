@@ -2,6 +2,7 @@ import os
 import sys
 import torch
 from transformers import LlamaForCausalLM, LlamaTokenizer
+from transformers.tokenization_utils import PaddingStrategy, TruncationStrategy
 from transformers.trainer_utils import get_last_checkpoint
 from peft import PeftModel, PeftConfig
 
@@ -40,14 +41,17 @@ print(model)
 model = PeftModel.from_pretrained(model, peft_model_path)
 print("peft", model)
 
-
 # merge
 merged_model = model.merge_and_unload()
+
+# revert embedding size
+model.resize_token_embeddings(len(tokenizer))
 
 # save
 os.makedirs(pretrain_output_dir, exist_ok=True)
 merged_model.save_pretrained(pretrain_output_dir)
 tokenizer.save_pretrained(pretrain_output_dir)
+
 
 print("Wrote merged pretrained model to: ", pretrain_output_dir)
 
@@ -70,3 +74,6 @@ with torch.no_grad():
         bos_token_id=tokenizer.bos_token_id,
         eos_token_id=tokenizer.eos_token_id
     )
+
+output = tokenizer.decode(output_ids.tolist()[0])
+print(output)

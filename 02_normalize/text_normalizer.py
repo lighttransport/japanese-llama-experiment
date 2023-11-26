@@ -162,7 +162,8 @@ def normalize_spacing_for_tok(text: str, language: str = "en") -> str:
 
 
 # NOTE accent=True will do NFKC normalization
-def normalize(line: str, accent=True, case=False, numbers=False, punct=1) -> str:
+# NOTE: set punct=0(no zenkaku->hankaku conversion) hby default for Japanese dataset
+def normalize(line: str, accent=True, case=False, numbers=False, punct=0) -> str:
     line = line.strip()
     if not line:
         return line
