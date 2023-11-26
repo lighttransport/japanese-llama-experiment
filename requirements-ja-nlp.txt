@@ -7,7 +7,8 @@ text-dedup
 #zstd
 zstandard
 tqdm
-bunkai
+# Use lb version. better but slow
+bunkai[lb]
 datasketch
 sudachipy
 fugashi[unidic]

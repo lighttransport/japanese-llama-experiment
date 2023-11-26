@@ -6,6 +6,7 @@ project(${PROJECT_NAME} C CXX)
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/sanitizers)
 option(CPPPROC_WITH_PYTHON "Embed Python interpreter" OFF)
+option(CPPPROC_WITH_IMAGING "Build with image loader/writer(for LLaVa dataset generation)" ON)
 
 find_package(Threads REQUIRED)
 
@@ -61,6 +62,10 @@ set(CPP_SOURCES
   sqlite3.c
   lz4.c
   )
+
+if (CPPPROC_WITH_IMAGING)
+  list(APPEND CPP_SOURCES fpng.cpp wuffs-unsupported-snapshot.c)
+endif()
 
 #add_subdirectory(${PROJECT_SOURCE_DIR}/../third_party/libsais libsais)
 #add_subdirectory(${PROJECT_SOURCE_DIR}/../third_party/zstd/build/cmake zstd)

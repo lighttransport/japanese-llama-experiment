@@ -35,7 +35,9 @@ while line:
         if len(sentencelines) > 0:
 
             d = {}
-            d["text"] = "\\n".join(sentencelines)
+            # No newline escape required
+            # (json.dumps handles it)
+            d["text"] = "\n".join(sentencelines)
             d["id"] = idx
             
             j = json.dumps(d, ensure_ascii=False)
