@@ -59,6 +59,7 @@ set(CPP_SOURCES
   libsais64.c
   libsais.c
   sqlite3.c
+  lz4.c
   )
 
 #add_subdirectory(${PROJECT_SOURCE_DIR}/../third_party/libsais libsais)
