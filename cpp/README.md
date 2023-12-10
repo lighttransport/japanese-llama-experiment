@@ -39,3 +39,4 @@ zstd.c was created using https://github.com/facebook/zstd/tree/dev/build/single_
 * lz4: 2-clause BSD.
 * fpng: unlicense(public domain).
 * wuffs: Apache 2.0
+* safetensors-cpp: MIT license. https://github.com/syoyo/safetensors-cpp
