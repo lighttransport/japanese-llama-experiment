@@ -60,6 +60,7 @@ set(CPP_SOURCES
   libsais64.c
   libsais.c
   sqlite3.c
+  lz4.c
   )
 
 if (CPPPROC_WITH_IMAGING)
