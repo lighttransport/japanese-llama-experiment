@@ -18,7 +18,7 @@ class LinewiseFilter:
         よりきちんとやるには形態素解析などして「続きを読む」と自然につながる文章の場合は削除しないようにする.
         """
 
-        startswith_list = ['続きを読む', '[続きを読む]', '(続きを読む)']
+        startswith_list = ['続きを読む', '[続きを読む]', '(続きを読む)', '続きをみる', '続きを見る', '[続きを見る]', '(続きを表示)', '・・・ 続きを読む']
 
         for s in startswith_list:
             if text.startswith(s):
@@ -27,12 +27,27 @@ class LinewiseFilter:
                 
         return text
 
+    def remove_contains(self, doc):
+        """
+        文中に特定のワードがあれば doc を除去
+        """
+
+        words = ['...(続きを表示)', '[ 続きを見る ]', '・・・続きを見る', '... 続きを読む']
+
+        for word in words:
+            for line in doc:
+                if word in line:
+                    return None
+        
+        return doc
+        
+
     def remove_endswith_tuzuki(self, text):
         """
         行末の「続きを読む」を削除する
         """
 
-        endswith_list = ['続きを読む', '[続きを読む]', '(続きを読む)', '続きを見る', '続きをみる', '(続く)', '(続きを表示)']
+        endswith_list = ['続きを読む', '[続きを読む]', '(続きを読む)', '続きを見る', '続きをみる', '(続く)', '(続きを表示)', '(続きをみる)', '[続きをみる]', '[続きを見る]']
 
         for e in endswith_list:
             if text.endswith(e):
@@ -67,13 +82,19 @@ class LinewiseFilter:
 
         in_lines = lines
 
-        for i, line in enumerate(in_lines):
-            lines[i] = self.remove_startswith_tuzuki(line)
-            lines[i] = self.remove_endswith_tuzuki(line)
+        for i, in_line in enumerate(in_lines):
+            line = in_line
+
+            line = self.remove_startswith_tuzuki(line)
+            line = self.remove_endswith_tuzuki(line)
+
+            lines[i] = line
 
         for line in lines:
             if self.endswith_leading_dots(line):
-                return False
+                return None
+
+        lines = self.remove_contains(lines)
 
         return lines
 
@@ -88,6 +109,12 @@ def test():
     
     text = "... 続きを読む"
     print(lwfilter.remove_endswith_tuzuki(text))
+
+    doc = ["aa ...(続きを表示)bb"]
+    print(lwfilter.remove_contains(doc))
+
+    doc = ["aa ...(続きを表bb"]
+    print(lwfilter.remove_contains(doc))
 
 
 if __name__ == '__main__':
@@ -110,6 +137,8 @@ if __name__ == '__main__':
     num_lines = 0
     num_removed_docs = 0
 
+    do_dump = True # debug
+
     for j in js:
         lines = j['text'].split('\n')
         num_lines += len(lines)
@@ -117,6 +146,10 @@ if __name__ == '__main__':
         ret = lwfilter.proc_doc(lines) 
         if ret is None:
             num_removed_docs += 1
+        else:
+            if do_dump:
+                for line in ret:
+                    print(line)
         
     print("# of input docs: ", len(js))
     print("# of removed docs: ", num_removed_docs)
