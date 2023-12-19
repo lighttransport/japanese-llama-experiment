@@ -1,0 +1,2 @@
+dict/adult_keywords_en.ng.txt  filter=crypt diff=crypt merge=crypt
+dict/adult_keywords_ja.ng.txt  filter=crypt diff=crypt merge=crypt
