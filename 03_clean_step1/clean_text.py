@@ -28,6 +28,10 @@ def do_clean(text: str, ws_threshold=1):
             continue
         elif sent.endswith("..."):
             continue
+        elif sent.endswith("... "):
+            continue
+        elif sent.endswith("...　"): # zenkaku space
+            continue
         elif sent.endswith("."):
             # ends with period(after normalization, '。' was replaced to '.')
             pass

@@ -111,6 +111,8 @@ def do_clean(text: str):
             continue
         elif sent.endswith("..."):
             continue
+        elif sent.endswith("... "):
+            continue
         elif sent.endswith("."):
             # ends with period(after normalization, '。' was replaced to '.')
             pass
