@@ -65,7 +65,18 @@ nlp 処理でライブラリのバージョンなどがかち合うため, 2 つ
 
 `python -m pip install -r requirements-ja-nlp.txt`
 
-で環境構築します.
+で環境構築を推奨します.
+
+### C++ compiler install
+
+Install via `sudo apt-get install build-essential` for Ubuntu, or
+
+```
+conda install -c conda-forge cxx-compiler
+conda install -c conda-forge cmake
+conda install -c conda-forge ninja
+# (optional) conda install -c conda-forge clang
+```
 
 ## Build CPP module
 
