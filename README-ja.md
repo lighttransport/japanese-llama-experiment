@@ -52,12 +52,13 @@ LLM(Large Language Model) のフルの学習(事前学習, pretrain)では, 品�
 
 ## Requirents
 
-* cmake + C++ 14 compiler
+* cmake + C++ 17 compiler
   * clang 推奨
 * Python 3.8+
+  * 3.10 推奨
 * (mini)conda 環境
 * 128 GB CPU mem PC.
-* GPU は不要です.
+* データセット構築処理(filtering, dedup)において, GPU は不要です.
 
 nlp 処理でライブラリのバージョンなどがかち合うため, 2 つ環境を作り, それぞれで
 
