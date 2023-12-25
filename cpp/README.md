@@ -22,6 +22,10 @@ $ cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCPP_PROC_WITH_KENLM=1 ..
 $ make
 ```
 
+### Build configuration for J.DepP
+
+* classifier: Linear(fastest but low accuracy)
+
 ### single-file zstd
 
 zstd.c was created using https://github.com/facebook/zstd/tree/dev/build/single_file_libs
@@ -40,3 +44,6 @@ zstd.c was created using https://github.com/facebook/zstd/tree/dev/build/single_
 * fpng: unlicense(public domain).
 * wuffs: Apache 2.0
 * safetensors-cpp: MIT license. https://github.com/syoyo/safetensors-cpp
+* jagger: We choose BSD license(GPLv2, LGPLv2.1 and BSD triple license) https://www.tkl.iis.u-tokyo.ac.jp/~ynaga/jagger/
+* J.DepP: We choose BSD license(GPLv2, LGPLv2.1 and BSD triple license) https://www.tkl.iis.u-tokyo.ac.jp/~ynaga/jdepp/
+* hat-trie: MIT license. https://github.com/Tessil/hat-trie
