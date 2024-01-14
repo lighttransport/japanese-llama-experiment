@@ -35,6 +35,11 @@ deepspeed_config_file=ds_zero1_no_offload.json
 ngpus_per_node=2
 use_flash_attn=True
 
+# 
+#    --overwrite_output_dir : train from a scratch and overwrite existing checkpoints
+#
+
+# resume from checkpoint in out_dir if available.
 torchrun --nnodes 1 --nproc_per_node ${ngpus_per_node} incr_pretrain_tinyllama.py \
     --deepspeed ${deepspeed_config_file} \
     --model_name_or_path ${pretrained_model} \
@@ -60,7 +65,6 @@ torchrun --nnodes 1 --nproc_per_node ${ngpus_per_node} incr_pretrain_tinyllama.p
     --preprocessing_num_workers 16 \
     --block_size ${block_size} \
     --output_dir ${output_dir} \
-    --overwrite_output_dir \
     --ddp_timeout 30000 \
     --logging_first_step True \
     --lora_rank ${lora_rank} \

@@ -1,2 +1,2 @@
 all:
-	python text_dedup/minhash.py
+	bash run_fuzzy_dedup.sh
