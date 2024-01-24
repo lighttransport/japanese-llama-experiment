@@ -12,6 +12,15 @@ def count_whitespaces(text):
 
     return c
 
+def is_closing_brace(c):
+    chars = ["»", "」", "》", "´", ")", "）", ")", "〉", ">", "】", "]"]
+
+    if c in chars:
+        return True
+
+    return False
+
+
 
 def do_clean(text: str, ws_threshold=1):
 
@@ -33,14 +42,19 @@ def do_clean(text: str, ws_threshold=1):
         elif sent.endswith("...　"): # zenkaku space
             continue
         elif sent.endswith("."):
-            # ends with period(after normalization, '。' was replaced to '.')
+            pass
+        elif sent.endswith("。"):
             pass
         elif sent.endswith(")"):
             # FIXME: May be ascii kaomoji :-)
             pass
         elif sent.endswith("!"):
             pass
+        elif sent.endswith("！"):
+            pass
         elif sent.endswith("?"):
+            pass
+        elif sent.endswith("？"):
             pass
         elif sent.endswith(","):
             continue
@@ -48,6 +62,8 @@ def do_clean(text: str, ws_threshold=1):
             continue
         elif sent.endswith("'"):
             continue
+        elif is_closing_brace(sent[:-1])
+            pass
         else:
             # assume sentence is broken.
             # TODO: Do nlp analysys 
