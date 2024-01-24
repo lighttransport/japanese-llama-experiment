@@ -1,9 +1,11 @@
 https://huggingface.co/datasets/oscar-corpus/OSCAR-2301
 
-Requireds log-in
+First visit this repo and agree to access to OSCAR-2301 dataset.
+
+Then,
 
 ```
-GIT_LFS_SKIP_SMUDGE=1 git clone https://huggingface.co/datasets/oscar-corpus/OSCAR-2301
+GIT_LFS_SKIP_SMUDGE=1 git clone git@hf.co:datasets/oscar-corpus/OSCAR-2301
 cd OSCAR-2301
 git lfs pull --include "ja_meta/*"
 ```

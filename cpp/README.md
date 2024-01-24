@@ -47,3 +47,4 @@ zstd.c was created using https://github.com/facebook/zstd/tree/dev/build/single_
 * jagger: We choose BSD license(GPLv2, LGPLv2.1 and BSD triple license) https://www.tkl.iis.u-tokyo.ac.jp/~ynaga/jagger/
 * J.DepP: We choose BSD license(GPLv2, LGPLv2.1 and BSD triple license) https://www.tkl.iis.u-tokyo.ac.jp/~ynaga/jdepp/
 * hat-trie: MIT license. https://github.com/Tessil/hat-trie
+* llama.cpp : MIT license. https://github.com/ggerganov/llama.cpp
