@@ -7,6 +7,8 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/sanitizers)
 option(CPPPROC_WITH_PYTHON "Embed Python interpreter" OFF)
 option(CPPPROC_WITH_IMAGING "Build with image loader/writer(for LLaVa dataset generation)" ON)
+option(CPPPROC_WITH_JDEPP "Build with J.DepP(for the dependency parsing of Japanese text)" ON)
+option(CPPPROC_WITH_LLAMACPP "Build with llama.cpp(for tokenization)" ON)
 
 find_package(Threads REQUIRED)
 
@@ -46,9 +48,10 @@ endif()
 
 
 # TODO: add neonbase64.cc or fastavxbase64.c based on CPU ISA.
-set(CPP_SOURCES
+set(CPPPROC_SOURCES
   main.cc
   jagger.cc
+  exact-dedup.cc
   dedup.cc
   MurmurHash3.cpp
   simdjson.cpp
@@ -63,14 +66,60 @@ set(CPP_SOURCES
   lz4.c
   )
 
+set(CPPPROC_DEP_SOURCES)
+
+if (CPPPROC_WITH_LLAMACPP)
+
+  set(CPPPROC_LLAMACPP_SOURCES
+    llamacpp/ggml.c
+    llamacpp/ggml-alloc.c
+    llamacpp/ggml-quants.c
+    llamacpp/ggml-backend.c
+    llamacpp/llama.cpp
+    llamacpp/common/common.cpp
+    llamacpp/common/build-info.cpp
+  )
+
+  list(APPEND CPPPROC_DEP_SOURCES ${CPPPROC_LLAMACPP_SOURCES})
+
+  message(STATUS "Build with llama.cpp(for tokenization)")
+
+endif ()
+
+if (CPPPROC_WITH_JDEPP)
+  
+  set(CPPPROC_JDEPP_SOURCES
+    jdepp/classify.cc
+    jdepp/kernel.cc
+    jdepp/linear.cc
+    jdepp/pdep.cc
+    jdepp/timer.cc
+  )
+
+  list(APPEND CPPPROC_DEP_SOURCES ${CPP_JDEPP_SOURCES})
+
+  message(STATUS "Build with J.DepP(Japanese dependency parser)")
+
+endif()
+
 if (CPPPROC_WITH_IMAGING)
-  list(APPEND CPP_SOURCES fpng.cpp wuffs-unsupported-snapshot.c)
+  list(APPEND CPPPROC_SOURCES fpng.cpp wuffs-unsupported-snapshot.c)
 endif()
 
 #add_subdirectory(${PROJECT_SOURCE_DIR}/../third_party/libsais libsais)
 #add_subdirectory(${PROJECT_SOURCE_DIR}/../third_party/zstd/build/cmake zstd)
 
-add_executable(${PROJECT_NAME} ${CPP_SOURCES})
+add_executable(${PROJECT_NAME} ${CPPPROC_SOURCES} ${CPPPROC_DEP_SOURCES})
 target_link_libraries(${PROJECT_NAME} PUBLIC ${CPPPROC_DEP_LIBRARIES} Threads::Threads ${CMAKE_DL_LIBS})
+
+if (CPPPROC_WITH_LLAMACPP)
+  target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/llamacpp)
+  target_compile_definitions(${PROJECT_NAME} PUBLIC "CPPPROC_USE_LLAMACPP")
+endif()
+
+if (CPPPROC_WITH_JDEPP)
+  target_compile_definitions(${PROJECT_NAME} PUBLIC "CPPPROC_USE_JDEPP")
+endif()
+
 add_sanitizers(${PROJECT_NAME})
 

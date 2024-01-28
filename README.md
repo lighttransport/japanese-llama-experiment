@@ -15,6 +15,12 @@ Japanese version [README-ja.md](README-ja.md)
 * (Mini)conda
 * Python 3.10+
   * Python 3.8+ may work.
+* CMake and C++17 compiler
+  * Install via `sudo apt-get install build-essential` for Ubuntu, or
+  * `conda install -c conda-forge cxx-compiler`
+  * `conda install -c conda-forge cmake`
+
+## Setup
 
 ### To prepare Japanese dataset
 

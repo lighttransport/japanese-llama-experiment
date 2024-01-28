@@ -4,6 +4,7 @@
 import os, sys
 import json
 import zstandard
+from tqdm import tqdm
 
 input_filepath = "../data/00_dataset/wiki40b-ja.jsonl.zstd"
 output_dir = "../data/00_dataset/wiki40b-ja/"
@@ -38,7 +39,7 @@ json_items = 0
 json_file_idx = 0
 sentencelines = []
 jsonlines = []
-for line in lines:
+for line in tqdm(lines):
 
     jsonlines.append(line.decode())
 

@@ -7,6 +7,11 @@ text-dedup
 #zstd
 zstandard
 tqdm
+
+# requires C++11 compiler to build
+# If you don't install C++ compiler, use `conda install -c conda-forge cxx-compiler`
+neologdn
+
 # Use lb version. better but slow
 bunkai[lb]
 datasketch
