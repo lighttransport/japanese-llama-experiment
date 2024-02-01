@@ -13,12 +13,13 @@ from pathlib import Path
 
 import zstandard
 import text_normalizer
+from tqdm import tqdm
 
 zstd_comp_level = 4 # default = 3
 
 nfiles = 123
-oscar_glob_pattern = "/mnt/disk01/OSCAR-2301/ja_meta/ja_meta_part_{}.jsonl.zst"
-checksumfile = "/mnt/disk01/OSCAR-2301/ja_meta/checksum.sha256"
+oscar_glob_pattern = "/mnt/data/work/OSCAR-2301/ja_meta/ja_meta_part_{}.jsonl.zst"
+checksumfile = "/mnt/data/work/OSCAR-2301/ja_meta/checksum.sha256"
 dst_oscar_path = Path("../data/01_normalized/OSCAR-2301")
 
 checksums = {}
@@ -121,10 +122,5 @@ for i in range(n):
 #    p.map(worker, inputfiles)
 
 with concurrent.futures.ProcessPoolExecutor(max_workers=nprocesses) as executor:
-    executor.map(worker, inputfiles)
+    fs = list(tqdm(executor.map(worker, inputfiles), total=len(inputfiles)))
 
-
-
-    
-
-    
