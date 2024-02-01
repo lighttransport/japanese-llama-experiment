@@ -1,3 +1,6 @@
+- rwkv_vocab_v20230424.json
+  grabbed from https://huggingface.co/RWKV/rwkv-5-world-1b5/tree/aa4409a7ed0720ec6db9d3160237383a87faa20b
+  Guess Apache 2.0 license will be applied to vocab file: https://github.com/BlinkDL/ChatRWKV
 - tinysegmenter-wiki-51200.model
   - TinySegmenterMaker で wikipedia データセットの一部(分かち書きして shuffle して 1024 * 512 行取り出したもの)で学習したモデルです.
   - MIT ライセンス
