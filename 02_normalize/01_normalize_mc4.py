@@ -12,12 +12,13 @@ import concurrent.futures
 
 import zstandard
 import text_normalizer
+from tqdm import tqdm
 
 zstd_comp_level = 4 # default = 3
 
 # TODO: hash check
 
-mc4_glob_pattern = "/mnt/disk01/work/c4/multilingual/c4-ja.tfrecord-{:05d}-of-01024.json.gz"
+mc4_glob_pattern = "../data/00_dataset/c4/multilingual/c4-ja.tfrecord-{:05d}-of-01024.json.gz"
 dst_mc4_path = Path("../data/01_normalized/mc4")
 
 # Create directory if not exists.
@@ -89,4 +90,4 @@ for i in range(n):
     inputfiles.append(filepath)
 
 with concurrent.futures.ProcessPoolExecutor(max_workers=nprocesses) as executor:
-    executor.map(worker, inputfiles)
+    fs = list(tqdm(executor.map(worker, inputfiles), total=len(inputfiles)))

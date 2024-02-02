@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-# SPDX-FileCopyrightText: 2023 - Present, Light Transport Entertainment Inc.
+# SPDX-FileCopyrightText: 2024 - Present, Light Transport Entertainment Inc.
 import sys
 import gzip
 import json
@@ -11,18 +11,16 @@ import concurrent.futures
 #from multiprocessing import Pool
 from pathlib import Path
 
-from tqdm import tqdm
 import zstandard
 import text_normalizer
+from tqdm import tqdm
 
 zstd_comp_level = 4 # default = 3
 
-nfiles = 1001
-cc100ja_glob_pattern = "../data/00_dataset/cc100/cc100-ja.{:05d}.jsonl.zstd"
-
-# TODO: checksum
-#checksumfile = "/mnt/disk01/cc100/checksum.sha256"
-dst_cc100ja_path = Path("../data/01_normalized/cc100ja")
+nfiles = 12
+wiki40b_glob_pattern = "../data/00_dataset/wiki40b-ja/wiki40b-ja.{:05d}.jsonl.zstd"
+#checksumfile = ""
+dst_wiki40b_path = Path("../data/01_normalized/wiki40b-ja")
 
 #checksums = {}
 #with open(checksumfile, "r") as f:
@@ -32,11 +30,12 @@ dst_cc100ja_path = Path("../data/01_normalized/cc100ja")
 #        checksums[tup[1]] = os.path.basename(tup[0])
 
 # Create directory if not exists.
-os.makedirs(dst_cc100ja_path, exist_ok=True)
+os.makedirs(dst_wiki40b_path, exist_ok=True)
 
-#files = glob.glob(mc4_glob_pattern)
+offset = 0
+n = nfiles
 
-nprocesses = 8
+nprocesses = 6
 
 def worker(filepath):
 
@@ -44,15 +43,6 @@ def worker(filepath):
 
     with open(filepath, 'rb') as f:
         indata = f.read()
-
-    basefilename = os.path.basename(filepath)
-
-    #checksum = hashlib.sha256(indata).hexdigest()
-    #if checksum == checksums[basefilename]:
-    #    print("Checksum OK", filepath)
-    #else:
-    #    print("Checksum check failed for ", filepath)
-    #    return
 
     dctx = zstandard.ZstdDecompressor()
     dobj = dctx.decompressobj()
@@ -66,10 +56,6 @@ def worker(filepath):
     for line in lines:
         j = json.loads(line)
 
-        # Simple version NFKC
-        #j["content"] = unicodedata.normalize('NFKC', j["content"])
-
-        # cc_net compatible version. apply NFKC normalization also. 
         j["text"] = text_normalizer.normalize(j["text"])
 
         dst_lines.append(json.dumps(j, ensure_ascii=False))
@@ -79,7 +65,7 @@ def worker(filepath):
     del lines
 
     zctx = zstandard.ZstdCompressor(level=zstd_comp_level)
-    zfilename = os.path.join(dst_cc100ja_path, os.path.splitext(os.path.basename(filepath))[0] + ".zstd")
+    zfilename = os.path.join(dst_wiki40b_path, os.path.splitext(os.path.basename(filepath))[0] + ".zstd")
 
     dst_buf = "\n".join(dst_lines)
 
@@ -98,12 +84,6 @@ def worker(filepath):
     print("done")
 
         
-#
-# - main
-#
-offset = 0
-n = nfiles
-
 
 if len(sys.argv) > 2:
     offset = int(sys.argv[1])
@@ -119,8 +99,10 @@ inputfiles = []
 for i in range(n):
     idx = offset + i
     
-    filepath = cc100ja_glob_pattern.format(idx)
+    # starts with 0.
+    filepath = wiki40b_glob_pattern.format(idx)
     inputfiles.append(filepath)
 
 with concurrent.futures.ProcessPoolExecutor(max_workers=nprocesses) as executor:
     fs = list(tqdm(executor.map(worker, inputfiles), total=len(inputfiles)))
+
