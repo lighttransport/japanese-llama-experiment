@@ -1,5 +1,5 @@
 //
-// TODO: 
+// TODO:
 // - [ ] Use fully streaming processing approach to save memory usage
 //       (zstd decode, json decode, process task, json encode, zstd encode)
 // - [ ] Efficient dedup by creating folder per MSB and use sorting to save memory.
@@ -29,6 +29,7 @@
 
 //
 #include "dedup.hh"
+#include "exact-dedup.hh"
 #include "str-util.hh"
 #include "pbar.hpp"
 
@@ -172,7 +173,7 @@ static void decompressFile_orDie(const char* fname,
             size_t dst_loc = dst.size();
             if (dst_loc + output.pos >= maxSize) {
               fprintf(stderr, "zstd data too large. exceeds %" PRIu64 ".\n", dst_loc + output.pos);
-              
+
             }
             dst.resize(dst.size() + output.pos);
             memcpy(dst.data() + dst_loc, buffOut, output.pos);
@@ -225,7 +226,7 @@ static std::string zstd_decompress(const char *fname) {
     // Use streaming API
     free(cBuff);
     return zstd_decompress_stream(fname);
-  } 
+  }
 
   void *const rBuff = malloc_orDie((size_t)rSize);
 
@@ -625,10 +626,10 @@ int main(int argc, char **argv) {
   if (argc < 3) {
     std::cout << "Need cmd ARGS\n";
     std::cout << "  cmd:\n";
-    std::cout << "    wakachi input.txt output.txt: Do wakachi-gaki for input "
-                 "string\n";
+    //std::cout << "    wakachi input.txt output.txt: Do wakachi-gaki for input "
+    //             "string\n";
     std::cout << "    normalize input_string : NFKC normalization\n";
-    std::cout << "    dedup <folder> [text_key]: Text dedup. Look *.jsonl.zstd "
+    std::cout << "    dedup <folder> [text_key]: do text dedup with minhash. Look *.jsonl.zstd "
                  "files in "
                  "<folder>. [text_key] optional. specify text tag in "
                  "JSON(default `text`)\n";
@@ -637,6 +638,10 @@ int main(int argc, char **argv) {
            "store minhash JSON to <out_folder>. Look *.zstd files in "
            "<folder>. [text_key] optional. specify text tag in JSON(default "
            "`text`)\n";
+    std::cout << "    exact build <folder> : Build suffix array for exact dedup\n";
+    std::cout << "    exact dedup <folder> : Do exact dedup with suffx array. Look *.jsonl.zstd files in <folder>.\n";
+    std::cout << "    exact count <folder> <key>: Count occurrences of key from suffix array. Look *.jsonl.zstd files in <folder>.\n";
+    std::cout << "    exact search <folder> <key>: Search string 'key' with suffix array. Look *.jsonl.zstd files in <folder>.\n";
     std::cout << "    proc input.jsonl.zstd : proc(WIP)\n";
     std::cout << "    test <test_cmd>: Run tests\n";
     return -1;
@@ -668,6 +673,31 @@ int main(int argc, char **argv) {
     } else {
       return -1;
     }
+  } else if (cmd == "exact") {
+    if (argc < 4) {
+      std::cerr << "Need <task> <folder>\n";
+      exit(-1);
+    }
+
+    const std::string task = argv[2];
+
+    if (task == "build") {
+      std::string input_str = "hello hello";
+      std::vector<int> sa;
+      if (!exact_dedup::build(reinterpret_cast<const uint8_t *>(input_str.c_str()), input_str.size(), sa)) {
+        exit(-1);
+      }
+    } else if (task == "dedup") {
+      std::cout << "TODO\n";
+      exit(-1);
+    } else if (task == "search") {
+      std::cout << "TODO\n";
+      exit(-1);
+    } else {
+      std::cerr << "Unknown task `" << task << "`\n";
+      exit(-1);
+    }
+
   } else if (cmd == "dedup") {
 
     if (argc < 4) {

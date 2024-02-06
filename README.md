@@ -94,8 +94,8 @@ See `00_download_dataset` for details.
 * [x] `01_prepare_dataset`
 * [x] `02_normalize/`
 * [x] `03_clean_step1/`
-* [ ] `04_lm_scoring/`
-* [ ] `05_dedup/`
+* [x] `04_lm_scoring/`
+* [x] `05_dedup/`
 
 ### Train Japanese Tokenizer
 
@@ -132,7 +132,8 @@ T.B.W.
 
 ## TODO
 
-T.B.W.
+* [ ] Japanese specific line-wise filtering
+* [ ] Exact Dedup using Suffix Array
 
 ## License
 

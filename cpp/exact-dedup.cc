@@ -3,17 +3,20 @@
 #include <iostream>
 
 #include "hat-trie/include/tsl/htrie_map.h"
-#include "libsais64.h"
+#include "libsais.h"
 
 namespace exact_dedup {
 
-bool build(const std::string &str) {
+bool build(const uint8_t *addr, const size_t n, std::vector<int32_t> &sa) {
 
-  std::vector<int64_t> sa;
-  sa.resize(str.size());
-  int64_t n = int64_t(str.size());
+  if (n > (std::numeric_limits<int32_t>::max)()) {
+    std::cerr << "Input exceeds 2GB.\n";
+    return false;
+  }
 
-  int64_t ret = libsais64(reinterpret_cast<const uint8_t*>(str.c_str()), sa.data(), n, /* extra space */0, /* symbol freq */nullptr);
+  sa.resize(n);
+
+  int32_t ret = libsais(addr, sa.data(), n, /* extra space */0, /* symbol freq */nullptr);
 
   if (ret < 0) {
     std::cerr << "Failed to build suffix array.\n";
@@ -22,7 +25,7 @@ bool build(const std::string &str) {
 
   // dbg
   for (size_t i = 0; i < sa.size(); i++) {
-    std::cout << "[" << i << "] = " << sa[i] << ", " << str[sa[i]] << "\n";
+    std::cout << "[" << i << "] = " << sa[i] << ", " << addr[sa[i]] << "\n";
   }
 
   return true;
