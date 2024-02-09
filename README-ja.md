@@ -1,5 +1,23 @@
 # 日本語 LLaMa 追加学習のための日本語データセット(日本語コーパス)構築と追加事前学習チャレンジ
 
+## 現在の状況
+
+LiLM 小規模言語モデル TinyLlama 1.1B の日本語追加事前学習(incremental pretrain) を試したメモ
+https://zenn.dev/syoyo/articles/52f1d0d62fcad5
+
+の結果を参考にし, より強い cleaning と dedup を行い, 品質を高めた「極み CharShu v1.5」 20B tokens 規模の追加事前学習用データセット(コーパス)を構築中です.
+
+* [ ] jdepp 係り受け解析結果を参考に文章のセンテンス分解, および改行で分かれている文章のセンテンスへの統合, および品質判定
+* [ ] Line-wise filtering
+* [ ] minhash dedup の高度化とスケーリング
+  * [ ] 9000 hashes(signatures)
+  * [ ] Edit Similarity 算出(RapidFuzz 利用)
+  * [ ] TB 単位の minhash でも 64GB 程度のメモリで処理できるようにシリアライズと dedup 判定を効率化
+* [ ] Exact dedup(Suffix array)
+  * [ ] Suffix array 構築
+  
+## はじめに
+
 Chinese LLaMa を参考に, Japanese LLaMa の追加事前学習のチャレンジをするスクリプト集です.
 
 * 日本語データセット構築(クリーニングと dedup(重複除去))
@@ -11,7 +29,7 @@ Chinese LLaMa を参考に, Japanese LLaMa の追加事前学習のチャレン�
 
 * 日本語データセットで既存の英語ベースの pretain model に対して追加事前学習
   * Chinese LLaMa を参考にしています https://github.com/ymcui/Chinese-LLaMA-Alpaca
-  * [x] TinyLLama 1.1B
+  * [x] TinyLLama 1.1B https://zenn.dev/syoyo/articles/52f1d0d62fcad5
 
 の二本立てで構成されています.
 
@@ -22,7 +40,7 @@ Chinese LLaMa を参考に, Japanese LLaMa の追加事前学習のチャレン�
   * jsonl + zstd 形式への変換
 * [x] テキストの正規化 [02_normalize](02_normalize)
   * NFKC で正規化
-  * 句読点は現在「, .」. 「、。」にしたほうがいいか?
+  * 句読点は「, .」ではなく「、。」にするようにした
 * [x] 日本語データセットの pre cleaning [03_clean_step1](03_clean_step1/)
 * [x] bunkai による改行を考慮した文分解.
 * [ ] NG ワードなどでの filtering.
