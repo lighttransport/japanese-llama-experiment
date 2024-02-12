@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 //
 // TODO:
 // - [ ] Use fully streaming processing approach to save memory usage
@@ -32,6 +34,12 @@
 #include "exact-dedup.hh"
 #include "str-util.hh"
 #include "pbar.hpp"
+#include "nanotokenizer.hh"
+
+//#define MINIJSON_IMPLEMENTATION
+// Use safetensors.hh' minijson implementation
+#include "minijson.h"
+
 
 #define N_GRAM 5
 #define B_BYTES 2 // this should be 2
