@@ -18,6 +18,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # TODO: add neonbase64.cc or fastavxbase64.c based on CPU ISA.
 set(EXACTDEDUP_SOURCES
   main.cc
+  ../cpp/zstd.c
   ../cpp/exact-dedup.cc
   ../cpp/TaskScheduler.cpp
   ../cpp/libsais.c

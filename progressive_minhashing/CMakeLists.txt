@@ -19,6 +19,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(FUZZYDEDUP_SOURCES
   main.cc
   fuzzy-dedup.cc
+  ../cpp/zstd.c
+  ../cpp/json.hpp
   )
 
 add_executable(${PROJECT_NAME} ${FUZZYDEDUP_SOURCES} ${FUZZYDEDUP_DEP_SOURCES})
