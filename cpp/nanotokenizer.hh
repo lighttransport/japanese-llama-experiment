@@ -76,6 +76,46 @@ class TrieTokenizer
     return true;
   }
 
+  bool encode16(const std::string &_input_str, std::vector<uint16_t> &output_ids) {
+    std::vector<uint16_t> dst;
+
+    std::string buf = _input_str;
+
+    while (!buf.empty()) {
+      std::cout << "buf.size " << buf.size() << "\n";
+
+      auto longest_prefix = _trie_map.longest_prefix(buf);
+      std::cout << "lpx " << *longest_prefix << "\n";
+      // 3319 = empty string.
+      if ((longest_prefix != _trie_map.end()) && !longest_prefix.key().empty()) {
+        dst.push_back(*longest_prefix);
+
+        std::cout << "sz =  " << longest_prefix.key().size() << "\n";
+
+        buf.erase(0, longest_prefix.key().size());
+      } else {
+        int u8len{0};
+        std::string u8char = extract_utf8_char(buf, 0, u8len);
+        if (u8len == 0) {
+          std::cerr << "invalid utf8 char found.\n";
+          exit(-1);
+        }
+
+        std::cout << "u8len =  " << u8len << "\n";
+        dst.push_back(_utf8_fallback_token_id);
+
+        for (size_t i = 0; i < u8char.size(); i++) {
+          dst.push_back(uint16_t(uint8_t(u8char[i])) + _utf8_id_offset);
+        }
+        buf.erase(0, u8len);
+      }
+
+    }
+
+    output_ids = dst;
+    return true;
+  }
+
   bool decode(const std::vector<int> input_ids, std::string &output_str) {
 
     std::string dst;
@@ -84,6 +124,38 @@ class TrieTokenizer
       if (input_ids[i] == _utf8_fallback_token_id) {
         std::string u8char;
         if (!utf8_char_from_ids(input_ids.data(), i+1, input_ids.size(), u8char, _utf8_id_offset)) {
+          std::cerr << "utf8 reconstruct failed.\n";
+          return false;
+        }
+
+        i += u8char.size();
+
+        dst += u8char;
+
+        continue;
+      }
+
+      if (!_id_to_str_map.count(input_ids[i])) {
+        std::cerr << "id not found: " << input_ids[i] << "\n";
+        return false;
+      }
+
+      dst += _id_to_str_map[input_ids[i]];
+    }
+
+    output_str = dst;
+
+    return true;
+  }
+
+  bool decode16(const std::vector<uint16_t> input_ids, std::string &output_str) {
+
+    std::string dst;
+
+    for (size_t i = 0; i < input_ids.size(); i++) {
+      if (input_ids[i] == _utf8_fallback_token_id) {
+        std::string u8char;
+        if (!utf8_char_from_ids16(input_ids.data(), i+1, input_ids.size(), u8char, _utf8_id_offset)) {
           std::cerr << "utf8 reconstruct failed.\n";
           return false;
         }
@@ -137,6 +209,41 @@ class TrieTokenizer
 
   // Reconstruct UTF-8 bytes from int sequence(UTF-8 encoded)
   inline bool utf8_char_from_ids(const int *addr, size_t loc, size_t n, std::string &str, int id_offset = 1) {
+    if (loc >= n) {
+      return false;
+    }
+
+    int start_c = addr[loc] - id_offset;
+    if ((start_c < 0) || (start_c > 255)) {
+      return false;
+    }
+
+    uint32_t len = utf8_len(uint8_t(start_c));
+
+    if (len == 0) {
+      return false;
+    }
+
+    if ((loc + len) > n) {
+      return false;
+    }
+
+    str = "";
+    std::vector<uint8_t> buf;
+    for (size_t i = 0; i < len; i++) {
+      int ic = addr[loc + i] - id_offset;
+      if ((ic < 0) || (ic > 255)) {
+        return false;
+      }
+      buf.push_back(uint8_t(ic));
+    }
+
+    str = std::string(reinterpret_cast<const char *>(buf.data()), buf.size());
+
+    return true;
+  }
+
+  inline bool utf8_char_from_ids16(const uint16_t *addr, size_t loc, size_t n, std::string &str, int id_offset = 1) {
     if (loc >= n) {
       return false;
     }

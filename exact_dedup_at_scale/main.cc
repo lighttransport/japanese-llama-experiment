@@ -1,106 +1,180 @@
-#include <cstdlib>
+#include <cassert>
 #include <cstdio>
-#include <future>
-#include <unordered_map>
-#include <vector>
+#include <cstdlib>
 #include <future>
 #include <iostream>
 #include <thread>
+#include <unordered_map>
+#include <vector>
 
 #include "exact-dedup.hh"
 
 #define GLOB_USE_GHC_FILESYSTEM
 #include "glob.hpp"
+#include "lz4file.h"
 
 #define OPTPARSE_IMPLEMENTATION
-#include "optparse.h"
-
-#include "pbar.hpp"
-#include "nanotokenizer.hh"
 #include "json.hpp"
+#include "nanotokenizer.hh"
+#include "optparse.h"
+#include "pbar.hpp"
 
+#define SAFETENSORS_IMPLEMENTATION
 #include "common.h"  // from zstd example
+#include "safetensors.hh"
+
+static bool zstd_compress_to_file(const void *buf, const size_t size,
+                                  const char *fname) {
+  size_t cBuffSize = ZSTD_compressBound(size);
+
+  /* Compress.
+   * If you are doing many compressions, you may want to reuse the context.
+   * See the multiple_simple_compression.c example.
+   */
+  void *const cBuff = malloc_orDie(cBuffSize);
+
+  size_t const cSize =
+      ZSTD_compress(cBuff, cBuffSize, buf, size, /* comp_level */ 7);
+  CHECK_ZSTD(cSize);
+
+  saveFile_orDie(fname, cBuff, cSize);
+
+  /* success */
+  printf("zstd compress: %25s : %6u -> %7u - %s \n", fname, (unsigned)size,
+         (unsigned)cSize, fname);
+
+  free(cBuff);
+
+  return true;
+}
+
+bool saveSuffixArray(const std::string &filename, const uint8_t *addr,
+                     const size_t bytes, bool use_lz4) {
+  if (use_lz4) {
+    FILE *fp = fopen(filename.c_str(), "wb");
+    if (!fp) {
+      fprintf(stderr, "fopen error: %s\n", filename.c_str());
+      exit(-1);
+    }
+
+    LZ4_writeFile_t *wf{nullptr};
+
+    LZ4F_errorCode_t ret = LZ4F_writeOpen(&wf, fp, nullptr);
+    if (LZ4F_isError(ret)) {
+      fprintf(stderr, "LZ4F_writeOpen error: %s\n", LZ4F_getErrorName(ret));
+      exit(-1);
+    }
+
+    ret = LZ4F_write(wf, reinterpret_cast<const void *>(addr), bytes);
+    if (LZ4F_isError(ret)) {
+      fprintf(stderr, "LZ4F_write: %s\n", LZ4F_getErrorName(ret));
+      exit(-1);
+    }
+
+    if (LZ4F_isError(LZ4F_writeClose(wf))) {
+      fprintf(stderr, "LZ4F_writeClose: %s\n", LZ4F_getErrorName(ret));
+      exit(-1);
+    }
+
+  } else {
+    // zstd
+    bool ret = zstd_compress_to_file(reinterpret_cast<const void *>(addr),
+                                     bytes, filename.c_str());
+    if (!ret) {
+      fprintf(stderr, "ZSTD compress&save file failed: %s\n", filename.c_str());
+      exit(-1);
+    }
+  }
+
+  return true;
+}
+
+struct DocumentInfo {
+  uint32_t documentId;
+};
 
 static uint32_t cpu_count() {
   return (std::max)(1u, std::thread::hardware_concurrency());
 }
 
-constexpr size_t kMaxSize = 1024ull * 1024ull * 1024ull * 128ull; // up to 128GB when uncompressed.
+constexpr size_t kMaxSize =
+    1024ull * 1024ull * 1024ull * 128ull;  // up to 128GB when uncompressed.
 
-static void decompressFile_orDie(const char* fname,
-  std::vector<uint8_t> &dst,
-  size_t maxSize = kMaxSize)
-{
-    FILE* const fin  = fopen_orDie(fname, "rb");
-    size_t const buffInSize = ZSTD_DStreamInSize();
-    void*  const buffIn  = malloc_orDie(buffInSize);
-    //FILE* const fout = stdout;
-    size_t const buffOutSize = ZSTD_DStreamOutSize();  /* Guarantee to successfully flush at least one complete compressed block in all circumstances. */
-    void*  const buffOut = malloc_orDie(buffOutSize);
+static void decompressFile_orDie(const char *fname, std::vector<uint8_t> &dst,
+                                 size_t maxSize = kMaxSize) {
+  FILE *const fin = fopen_orDie(fname, "rb");
+  size_t const buffInSize = ZSTD_DStreamInSize();
+  void *const buffIn = malloc_orDie(buffInSize);
+  // FILE* const fout = stdout;
+  size_t const buffOutSize =
+      ZSTD_DStreamOutSize(); /* Guarantee to successfully flush at least one
+                                complete compressed block in all circumstances.
+                              */
+  void *const buffOut = malloc_orDie(buffOutSize);
 
-    ZSTD_DCtx* const dctx = ZSTD_createDCtx();
-    CHECK(dctx != NULL, "ZSTD_createDCtx() failed!");
+  ZSTD_DCtx *const dctx = ZSTD_createDCtx();
+  CHECK(dctx != NULL, "ZSTD_createDCtx() failed!");
 
-    /* This loop assumes that the input file is one or more concatenated zstd
-     * streams. This example won't work if there is trailing non-zstd data at
-     * the end, but streaming decompression in general handles this case.
-     * ZSTD_decompressStream() returns 0 exactly when the frame is completed,
-     * and doesn't consume input after the frame.
+  /* This loop assumes that the input file is one or more concatenated zstd
+   * streams. This example won't work if there is trailing non-zstd data at
+   * the end, but streaming decompression in general handles this case.
+   * ZSTD_decompressStream() returns 0 exactly when the frame is completed,
+   * and doesn't consume input after the frame.
+   */
+  size_t const toRead = buffInSize;
+  size_t read;
+  size_t lastRet = 0;
+  int isEmpty = 1;
+  while ((read = fread_orDie(buffIn, toRead, fin))) {
+    isEmpty = 0;
+    ZSTD_inBuffer input = {buffIn, read, 0};
+    /* Given a valid frame, zstd won't consume the last byte of the frame
+     * until it has flushed all of the decompressed data of the frame.
+     * Therefore, instead of checking if the return code is 0, we can
+     * decompress just check if input.pos < input.size.
      */
-    size_t const toRead = buffInSize;
-    size_t read;
-    size_t lastRet = 0;
-    int isEmpty = 1;
-    while ( (read = fread_orDie(buffIn, toRead, fin)) ) {
-        isEmpty = 0;
-        ZSTD_inBuffer input = { buffIn, read, 0 };
-        /* Given a valid frame, zstd won't consume the last byte of the frame
-         * until it has flushed all of the decompressed data of the frame.
-         * Therefore, instead of checking if the return code is 0, we can
-         * decompress just check if input.pos < input.size.
-         */
-        while (input.pos < input.size) {
-            ZSTD_outBuffer output = { buffOut, buffOutSize, 0 };
-            /* The return code is zero if the frame is complete, but there may
-             * be multiple frames concatenated together. Zstd will automatically
-             * reset the context when a frame is complete. Still, calling
-             * ZSTD_DCtx_reset() can be useful to reset the context to a clean
-             * state, for instance if the last decompression call returned an
-             * error.
-             */
-            size_t const ret = ZSTD_decompressStream(dctx, &output , &input);
-            CHECK_ZSTD(ret);
-            //fwrite_orDie(buffOut, output.pos, fout);
-            size_t dst_loc = dst.size();
-            if (dst_loc + output.pos >= maxSize) {
-              fprintf(stderr, "zstd data too large. exceeds %" PRIu64 ".\n", dst_loc + output.pos);
-
-            }
-            dst.resize(dst.size() + output.pos);
-            memcpy(dst.data() + dst_loc, buffOut, output.pos);
-            lastRet = ret;
-        }
+    while (input.pos < input.size) {
+      ZSTD_outBuffer output = {buffOut, buffOutSize, 0};
+      /* The return code is zero if the frame is complete, but there may
+       * be multiple frames concatenated together. Zstd will automatically
+       * reset the context when a frame is complete. Still, calling
+       * ZSTD_DCtx_reset() can be useful to reset the context to a clean
+       * state, for instance if the last decompression call returned an
+       * error.
+       */
+      size_t const ret = ZSTD_decompressStream(dctx, &output, &input);
+      CHECK_ZSTD(ret);
+      // fwrite_orDie(buffOut, output.pos, fout);
+      size_t dst_loc = dst.size();
+      if (dst_loc + output.pos >= maxSize) {
+        fprintf(stderr, "zstd data too large. exceeds %" PRIu64 ".\n",
+                dst_loc + output.pos);
+      }
+      dst.resize(dst.size() + output.pos);
+      memcpy(dst.data() + dst_loc, buffOut, output.pos);
+      lastRet = ret;
     }
+  }
 
-    if (isEmpty) {
-        fprintf(stderr, "input is empty\n");
-        exit(1);
-    }
+  if (isEmpty) {
+    fprintf(stderr, "input is empty\n");
+    exit(1);
+  }
 
-    if (lastRet != 0) {
-        /* The last return value from ZSTD_decompressStream did not end on a
-         * frame, but we reached the end of the file! We assume this is an
-         * error, and the input was truncated.
-         */
-        fprintf(stderr, "EOF before end of stream: %zu\n", lastRet);
-        exit(1);
-    }
+  if (lastRet != 0) {
+    /* The last return value from ZSTD_decompressStream did not end on a
+     * frame, but we reached the end of the file! We assume this is an
+     * error, and the input was truncated.
+     */
+    fprintf(stderr, "EOF before end of stream: %zu\n", lastRet);
+    exit(1);
+  }
 
-    ZSTD_freeDCtx(dctx);
-    fclose_orDie(fin);
-    //fclose_orDie(fout);
-    free(buffIn);
-    free(buffOut);
+  ZSTD_freeDCtx(dctx);
+  fclose_orDie(fin);
+  // fclose_orDie(fout);
+  free(buffIn);
+  free(buffOut);
 }
 
 static std::string zstd_decompress_stream(const char *fname) {
@@ -109,7 +183,6 @@ static std::string zstd_decompress_stream(const char *fname) {
 
   return std::string(reinterpret_cast<char *>(data.data()), data.size());
 }
-
 
 static std::string zstd_decompress(const char *fname) {
   size_t cSize;
@@ -123,7 +196,8 @@ static std::string zstd_decompress(const char *fname) {
    */
   unsigned long long const rSize = ZSTD_getFrameContentSize(cBuff, cSize);
   CHECK(rSize != ZSTD_CONTENTSIZE_ERROR, "%s: not compressed by zstd!", fname);
-  //CHECK(rSize != ZSTD_CONTENTSIZE_UNKNOWN, "%s: original size unknown!", fname);
+  // CHECK(rSize != ZSTD_CONTENTSIZE_UNKNOWN, "%s: original size unknown!",
+  // fname);
   if (rSize == ZSTD_CONTENTSIZE_UNKNOWN) {
     // Use streaming API
     free(cBuff);
@@ -217,30 +291,113 @@ static std::vector<nlohmann::json> load_jsonl_zstd(
   return jsonl;
 }
 
+std::vector<uint8_t> flatten_texts(const std::vector<nlohmann::json> &js,
+                                   const std::string &text_key) {
+  std::vector<uint8_t> dst;
+
+  for (const auto &j : js) {
+    std::string text = j[text_key];
+    dst.insert(dst.end(), text.begin(), text.end());
+
+    // Use 3(end-of-text) as delimiter 
+    dst.push_back(3);
+  }
+
+  return dst;
+}
+
+std::vector<int32_t> compute_suffix_array_bytes(
+    const std::vector<uint8_t> &bytes) {
+  if (bytes.size() > std::numeric_limits<int32_t>::max()) {
+    fprintf(stderr, "Input must be 2GB or less.\n");
+    exit(-1);
+  }
+
+  std::vector<int32_t> sa;
+  if (!exact_dedup::build(bytes.data(), bytes.size(), sa)) {
+    fprintf(stderr, "Failed to compute suffix array.\n");
+    exit(-1);
+  }
+
+  return sa;
+}
+
+std::vector<int> compute_suffix_array_u16(
+    const std::vector<uint16_t> &tokens) {
+  if (tokens.size() > std::numeric_limits<int32_t>::max()) {
+    fprintf(stderr, "Input must be 2GB or less tokens.\n");
+    exit(-1);
+  }
+
+  std::vector<int32_t> sa;
+  if (!exact_dedup::build_from_tokenized(tokens.data(), tokens.size(), sa)) {
+    fprintf(stderr, "Failed to compute suffix array.\n");
+    exit(-1);
+  }
+
+  return sa;
+}
+
+
+bool build(const uint8_t *addr, size_t n, std::vector<int32_t> &sa);
+
+nanotokenizer::TrieTokenizer build_tokenizer(const std::string &vocab_filename) {
+
+  std::ifstream ifs(vocab_filename);
+
+  nlohmann::json j = nlohmann::json::parse(ifs);
+
+  std::map<std::string, int> str_to_id_map;
+
+  for (nlohmann::json::iterator it = j.begin(); it != j.end(); ++it) {
+    std::cout << "str " << it.key() << ", v " << int(it.value()) << "\n";
+    str_to_id_map[it.key()] = int(it.value());
+  }
+
+  nanotokenizer::TrieTokenizer tok;
+  if (!tok.load_vocab(str_to_id_map)) {
+    fprintf(stderr, "Failed to setup Tokenizer.");
+    exit(-1);
+  }
+
+  return tok;
+}
 
 int main(int argc, char **argv) {
-
   std::string filename = "../../test_data/bora.jsonl.zst";
   bool tokenize{false};
+  bool use_lz4{false};
 
-  struct optparse_long longopts[] = {
-        {"tokenize", 't', OPTPARSE_NONE},
-        {0}
-    };
+  struct optparse_long longopts[] = {{"tokenize", 't', OPTPARSE_NONE},
+                                     {"lz4", '4', OPTPARSE_NONE},
+                                     {"text_key", 'k', OPTPARSE_REQUIRED},
+                                     {"vocab", 'o', OPTPARSE_REQUIRED},
+                                     {0}};
 
+  std::string vocab_json_filename{"../../models/rwkv_vocab_v20230424-ja-emo-kao.json"};
+  std::string text_key{"text"};
   int option;
   struct optparse options;
   optparse_init(&options, argv);
 
-  while((option =  optparse_long(&options, longopts, nullptr)) != -1) {
+  while ((option = optparse_long(&options, longopts, nullptr)) != -1) {
     switch (option) {
       case 't':
         tokenize = true;
         break;
+      case 'k':
+        text_key = options.optarg;
+        break;
+      case '4':
+        use_lz4 = true;
+        break;
+      case 'o':
+        vocab_json_filename = options.optarg;
+        break;
       case '?':
         fprintf(stderr, "%s: %s\n", argv[0], options.errmsg);
-        exit(EXIT_FAILURE); 
-      }
+        exit(EXIT_FAILURE);
+    }
   }
 
   char *arg;
@@ -248,14 +405,44 @@ int main(int argc, char **argv) {
     printf("%s\n", arg);
   }
 
-
   int total = 1;
-  pbar::pbar bar(total, /* ncols */100, "[Task]");
+  pbar::pbar bar(total, /* ncols */ 100, "[Task]");
 
   bar.enable_recalc_console_width(1);
   bar.init();
 
   std::vector<nlohmann::json> js = load_jsonl_zstd(filename);
+  std::vector<uint8_t> texts = flatten_texts(js, text_key);
+
+  std::vector<int32_t> sa;
+
+  std::string out_filename = "output-sa";
+
+  if (tokenize) {
+    nanotokenizer::TrieTokenizer tokenizer = build_tokenizer(vocab_json_filename);
+    out_filename += "-tokenized";
+
+    std::vector<uint16_t> input_ids;
+    std::string s(texts.begin(), texts.begin() + texts.size());
+    if (!tokenizer.encode16(s, input_ids)) {
+      fprintf(stderr, "tokenize failed.\n");
+      exit(-1);
+    }
+    sa = compute_suffix_array_u16(input_ids);
+  } else {
+    sa = compute_suffix_array_bytes(texts);
+  }
+
+  if (use_lz4) {
+    out_filename += ".lz4";
+  } else {
+    out_filename += ".zstd";
+  }
+  if (!saveSuffixArray(out_filename, reinterpret_cast<const uint8_t *>(sa.data()),
+                       sa.size() * sizeof(int32_t), use_lz4)) {
+    fprintf(stderr, "Failed to save suffix array.");
+    exit(-1);
+  }
 
   ++bar;
 

@@ -23,6 +23,11 @@ set(EXACTDEDUP_SOURCES
   ../cpp/TaskScheduler.cpp
   ../cpp/libsais.c
   ../cpp/libsais16.c
+  ../cpp/lz4.c
+  ../cpp/lz4hc.c
+  ../cpp/lz4file.c
+  ../cpp/lz4frame.c
+  ../cpp/xxhash.c
   )
 
 add_executable(${PROJECT_NAME} ${EXACTDEDUP_SOURCES} ${EXACTDEDUP_DEP_SOURCES})
