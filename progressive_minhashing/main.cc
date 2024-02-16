@@ -5,6 +5,8 @@
 
 #include "fuzzy-dedup.hh"
 
+#include "zstd.h"
+
 struct FileBuffer {
   std::string filename;
   std::vector<uint8_t> data; 
