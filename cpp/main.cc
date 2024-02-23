@@ -34,7 +34,7 @@
 #include "exact-dedup.hh"
 #include "str-util.hh"
 #include "pbar.hpp"
-#include "nanotokenizer.hh"
+#include "rwkv_world_tokenizer_trie.hh"
 
 //#define MINIJSON_IMPLEMENTATION
 // Use safetensors.hh' minijson implementation

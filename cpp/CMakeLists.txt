@@ -61,6 +61,7 @@ set(CPPPROC_SOURCES
   zstd.c
   utf8proc.c
   libsais64.c
+  libsais16.c
   libsais.c
   sqlite3.c
   lz4.c
