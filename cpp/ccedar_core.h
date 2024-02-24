@@ -12,8 +12,8 @@ namespace ccedar {
   template <typename T> struct to_unsigned;
   template <> struct to_unsigned <char> { typedef unsigned char  type; };
   template <> struct to_unsigned <int>  { typedef unsigned int   type; };
-  template <typename T> inline size_t key_len (const T* p);
-  template <> inline size_t key_len (const char* p) { return std::strlen(p); }
+  template <typename T> size_t key_len (const T* p);
+  template <> size_t key_len <char> (const char *p) { return std::strlen (p); }
   // dynamic double array
   template <typename key_type,
             typename value_type,
@@ -121,9 +121,9 @@ namespace ccedar {
       _size = static_cast <int> (size_);
       return 0;
     }
-    void set_array (void* p, size_t size_ = 0) { // ad-hoc
+    void set_array (const void* p, size_t size_ = 0) { // ad-hoc
       clear (false);
-      _array = static_cast <node*> (p);
+      _array = const_cast<node *>(static_cast <const node*> (p));
       _size  = static_cast <int> (size_);
       _no_delete = true;
     }
