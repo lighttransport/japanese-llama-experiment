@@ -19,7 +19,7 @@ class CedarTrieTokenizer {
   using itrie_t = ccedar::da<int, int, MAX_KEY_BITS>; // Key = UTF codepoint(int value)
 
   CedarTrieTokenizer() = default;
-  CedarTrieTokenizer(bool use_codepoint = false) : _use_codepoint(use_codepoint) {}
+  explicit CedarTrieTokenizer(bool use_codepoint) : _use_codepoint(use_codepoint) {}
   ~CedarTrieTokenizer() {
     // free memory in cedar
     if (_use_codepoint) {
