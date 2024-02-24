@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <vector>
 
 namespace ccedar {
   // typedefs
@@ -46,7 +47,7 @@ namespace ccedar {
       int ehead;  // first empty item
       block () : prev (0), next (0), num (MAX_KEY_CODE), ok (MAX_KEY_CODE), trial (0), ehead (0) {}
     };
-    da () : _array (0), _ninfo (0), _block (0), _bheadF (0), _bheadC (0), _bheadO (0), _capacity (0), _size (0), _no_delete (false), _ok ()
+    da () :  _bheadF (0), _bheadC (0), _bheadO (0), _capacity (0), _size (0), _no_delete (false), _ok ()
     { _initialize (); }
     ~da () { clear (); }
     // interfance
@@ -100,6 +101,7 @@ namespace ccedar {
       const int to = _follow (from, 0);
       return _array[to].value += val;
     }
+#if 0
     int save (const char* fn, const char* mode = "wb") const {
       FILE* fp = std::fopen (fn, mode);
       if (! fp) return -1;
@@ -127,12 +129,15 @@ namespace ccedar {
       _size  = static_cast <int> (size_);
       _no_delete = true;
     }
-    const void* array () const { return _array; }
+#endif
+    const void* array () const { return reinterpret_cast<const void *>(_array.data()); }
     void clear (const bool reuse = true) {
-      if (_array && ! _no_delete) std::free (_array);
-      if (_ninfo) std::free (_ninfo);
-      if (_block) std::free (_block);
-      _array = 0; _ninfo = 0; _block = 0;
+      //if (_array && ! _no_delete) std::free (_array);
+      //if (_ninfo) std::free (_ninfo);
+      //if (_block) std::free (_block);
+      //_array = 0;
+      //_ninfo = 0;
+      //_block = 0;
       _bheadF = _bheadC = _bheadO = _capacity = _size = 0;
       if (reuse) _initialize ();
       _no_delete = false;
@@ -141,32 +146,57 @@ namespace ccedar {
     // currently disabled; implement these if you need
     da (const da&);
     da& operator= (const da&);
-    node*   _array;
-    ninfo*  _ninfo;
-    block*  _block;
-    int     _bheadF;  // first block of Full;   0
-    int     _bheadC;  // first block of Closed; 0 if no Closed
-    int     _bheadO;  // first block of Open;   0 if no Open
-    int     _capacity;
-    int     _size;
-    int     _no_delete;
+    //node*   _array{nullptr};
+    //ninfo*  _ninfo{nullptr};
+    //block*  _block{nullptr};
+    std::vector<node> _array;
+    std::vector<ninfo> _ninfo;
+    std::vector<block> _block;
+    int     _bheadF{0};  // first block of Full;   0
+    int     _bheadC{0};  // first block of Closed; 0 if no Closed
+    int     _bheadO{0};  // first block of Open;   0 if no Open
+    int     _capacity{0};
+    int     _size{0};
+    int     _no_delete{false};
     int     _ok[MAX_KEY_CODE + 1];
     //
     static void _err (const char* fn, const int ln, const char* msg)
     { std::fprintf (stderr, "cedar: %s [%d]: %s", fn, ln, msg); std::exit (1); }
+
+#if 0
     template <typename T>
     static void _realloc_array (T*& p, const int size_n, const int size_p = 0) {
-      void* tmp = std::realloc (p, sizeof (T) * static_cast <size_t> (size_n));
-      if (! tmp)
+      //void* tmp = std::realloc (p, sizeof (T) * static_cast <size_t> (size_n));
+      void* tmp = malloc(sizeof (T) * static_cast <size_t> (size_n));
+      if (! tmp) {
         std::free (p), _err (__FILE__, __LINE__, "memory reallocation failed\n");
+      }
+      memset(tmp, 0, sizeof (T) * static_cast <size_t> (size_n));
+      T* p_prev = p;
+
       p = static_cast <T*> (tmp);
       static const T T0 = T ();
       for (T* q (p + size_p), * const r (p + size_n); q != r; ++q) *q = T0;
+
+      if (p_prev) {
+        free(p_prev);
+      }
+    }
+#endif
+
+    template <typename T>
+    static void _resize_array (std::vector<T>& p, const int sn, const int sp = 0) {
+      p.resize(sn);
+
+      static const T T0 = T ();
+      for (T* q (p.data() + sp), * const r (p.data() + sn); q != r; ++q) *q = T0;
+
     }
     void _initialize () { // initialize the first special block
-      _realloc_array (_array, MAX_KEY_CODE, MAX_KEY_CODE);
-      _realloc_array (_ninfo, MAX_KEY_CODE);
-      _realloc_array (_block, 1);
+      //_realloc_array (_array, MAX_KEY_CODE, MAX_KEY_CODE);
+      _resize_array (_array, MAX_KEY_CODE, MAX_KEY_CODE);
+      _resize_array (_ninfo, MAX_KEY_CODE);
+      _resize_array (_block, 1);
       _array[0] = node (0, -1);
       for (int i = 1; i < MAX_KEY_CODE; ++i)
         _array[i] = node (i == 1 ? -(MAX_KEY_CODE - 1) : - (i - 1), i == (MAX_KEY_CODE - 1) ? -1 : - (i + 1));
@@ -178,11 +208,13 @@ namespace ccedar {
     int _follow (size_t& from, const ukey_type& label) {
       int to = 0;
       const int base = _array[from].base;
+
       if (base < 0 || _array[to = base ^ label].check < 0) {
         to = _pop_enode (base, label, static_cast <int> (from));
         _push_sibling (from, to ^ label, label, base >= 0);
-      } else if (_array[to].check != static_cast <int> (from))
+      } else if (_array[to].check != static_cast <int> (from)) {
         to = _resolve (from, base, label);
+      }
       return to;
     }
     // find key from double array
@@ -224,9 +256,9 @@ namespace ccedar {
     int _add_block () {
       if (_size == _capacity) { // allocate memory if needed
         _capacity += _size >= MAX_ALLOC_SIZE ? MAX_ALLOC_SIZE : _size;
-        _realloc_array (_array, _capacity, _capacity);
-        _realloc_array (_ninfo, _capacity, _size);
-        _realloc_array (_block, _capacity >> MAX_KEY_BITS, _size >> MAX_KEY_BITS);
+        _resize_array (_array, _capacity, _capacity);
+        _resize_array (_ninfo, _capacity, _size);
+        _resize_array (_block, _capacity >> MAX_KEY_BITS, _size >> MAX_KEY_BITS);
       }
       _block[_size >> MAX_KEY_BITS].ehead = _size;
       _array[_size] = node (- (_size + (MAX_KEY_CODE - 1)),  - (_size + 1));

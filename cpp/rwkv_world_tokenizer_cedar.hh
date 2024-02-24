@@ -24,14 +24,8 @@ class CedarTrieTokenizer {
     // free memory in cedar
     if (_use_codepoint) {
       _ida.clear(/* reuse */false);
-      if (_ida.array()) {  // work around for _array is not free'ed in ccedar
-        std::free(const_cast<void *>(_ida.array()));
-      }
     } else {
       _cda.clear(/* reuse */ false);
-      if (_cda.array()) {  // work around for _array is not free'ed in ccedar
-        std::free(const_cast<void *>(_cda.array()));
-      }
     }
   }
 
@@ -75,6 +69,7 @@ class CedarTrieTokenizer {
         // UTF-8 string to int(unicode) array
         std::vector<int> ikey;
 
+        //std::cout << "str: " << it.first << ", id: " << it.second << "\n";
         int charlen{0};
         for (size_t i = 0; i < slen; i += charlen) {
           int code = to_codepoint(it.first.c_str() + i, charlen);
