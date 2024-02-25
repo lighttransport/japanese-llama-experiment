@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <vector>
+#include <memory>
 
 namespace ccedar {
   // typedefs
@@ -14,7 +15,7 @@ namespace ccedar {
   template <> struct to_unsigned <char> { typedef unsigned char  type; };
   template <> struct to_unsigned <int>  { typedef unsigned int   type; };
   template <typename T> size_t key_len (const T* p);
-  template <> size_t key_len <char> (const char *p) { return std::strlen (p); }
+  //template <> size_t key_len <char> (const char *p) { return std::strlen (p); }
   // dynamic double array
   template <typename key_type,
             typename value_type,
@@ -47,7 +48,7 @@ namespace ccedar {
       int ehead;  // first empty item
       block () : prev (0), next (0), num (MAX_KEY_CODE), ok (MAX_KEY_CODE), trial (0), ehead (0) {}
     };
-    da () :  _bheadF (0), _bheadC (0), _bheadO (0), _capacity (0), _size (0), _no_delete (false), _ok ()
+    da () :  _bheadF (0), _bheadC (0), _bheadO (0), _capacity (0), _size (0), _ok ()
     { _initialize (); }
     ~da () { clear (); }
     // interfance
@@ -101,14 +102,14 @@ namespace ccedar {
       const int to = _follow (from, 0);
       return _array[to].value += val;
     }
-#if 0
     int save (const char* fn, const char* mode = "wb") const {
       FILE* fp = std::fopen (fn, mode);
       if (! fp) return -1;
-      std::fwrite (_array, sizeof (node), static_cast <size_t> (_size), fp);
+      std::fwrite (_array.data(), sizeof (node), static_cast <size_t> (_size), fp);
       std::fclose (fp);
       return 0;
     }
+#if 0
     int open (const char* fn, const char* mode = "rb") {
       FILE* fp = std::fopen (fn, mode);
       if (! fp) return -1;
@@ -123,13 +124,14 @@ namespace ccedar {
       _size = static_cast <int> (size_);
       return 0;
     }
-    void set_array (const void* p, size_t size_ = 0) { // ad-hoc
-      clear (false);
-      _array = const_cast<node *>(static_cast <const node*> (p));
-      _size  = static_cast <int> (size_);
-      _no_delete = true;
-    }
 #endif
+    void set_array (const void* p, size_t nbytes_) { // TODO: Use num_nnodes for size
+      clear (false);
+      _array.resize(nbytes_ / sizeof(node));
+      memcpy(_array.data(), p, nbytes_);
+      _size  = static_cast <int> (nbytes_ / sizeof(node));
+      //_no_delete = true;
+    }
     const void* array () const { return reinterpret_cast<const void *>(_array.data()); }
     void clear (const bool reuse = true) {
       //if (_array && ! _no_delete) std::free (_array);
@@ -140,7 +142,7 @@ namespace ccedar {
       //_block = 0;
       _bheadF = _bheadC = _bheadO = _capacity = _size = 0;
       if (reuse) _initialize ();
-      _no_delete = false;
+      //_no_delete = false;
     }
   private:
     // currently disabled; implement these if you need
@@ -157,7 +159,7 @@ namespace ccedar {
     int     _bheadO{0};  // first block of Open;   0 if no Open
     int     _capacity{0};
     int     _size{0};
-    int     _no_delete{false};
+    //int     _no_delete{false}; // Deprecated
     int     _ok[MAX_KEY_CODE + 1];
     //
     static void _err (const char* fn, const int ln, const char* msg)
@@ -189,8 +191,10 @@ namespace ccedar {
       p.resize(sn);
 
       static const T T0 = T ();
-      for (T* q (p.data() + sp), * const r (p.data() + sn); q != r; ++q) *q = T0;
-
+      //for (T* q (p.data() + sp), * const r (p.data() + sn); q != r; ++q) *q = T0;
+      for (size_t i = sp; i < sn; i++) {
+        p[i] = T0;
+      }
     }
     void _initialize () { // initialize the first special block
       //_realloc_array (_array, MAX_KEY_CODE, MAX_KEY_CODE);
