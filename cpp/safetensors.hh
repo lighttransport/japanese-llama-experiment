@@ -333,7 +333,7 @@ float fp16_to_float(uint16_t x);
 #include <cstring>
 #else
 
-namespace safetensors {
+namespace minijson {
 namespace simdjson {
 namespace internal {
 
@@ -344,7 +344,7 @@ char *to_chars(char *first, const char *last, double value);
 
 }  // namespace internal
 }  // namespace simdjson
-}  // namespace safetensors
+}  // namesapce minijson
 
 #endif
 
@@ -1116,7 +1116,7 @@ namespace detail {
     @return codepoint (0x0000..0xFFFF) or -1 in case of an error (e.g. EOF or
             non-hex character)
     */
-    int string_parser::get_codepoint()
+    int string_parser::get_codepoint() 
     {
         // this function only makes sense after reading `\u`
         //JSON_ASSERT(current == 'u');
@@ -1815,7 +1815,7 @@ double from_chars(const char *p) {
 #if defined(MINIJSON_USE_STRTOD)
   return strtod(p, nullptr);
 #else
-  return safetensors::simdjson::internal::from_chars(p);
+  return simdjson::internal::from_chars(p);
 #endif
 }
 
@@ -1849,7 +1849,7 @@ const char *my_strchr(const char *p, int ch) {
 #include <cstring>
 #include <limits>
 
-namespace safetensors {
+namespace minijson {
 namespace simdjson {
 namespace internal {
 
@@ -2462,9 +2462,9 @@ double from_chars(const char *first, const char *end) noexcept {
 
 }  // namespace internal
 }  // namespace simdjson
-} // namespace safetensors
+}  // namespace minijson
 
-namespace safetensors {
+namespace minijson {
 namespace simdjson {
 namespace internal {
 /*!
@@ -3413,7 +3413,7 @@ char *to_chars(char *first, const char *last, double value) {
 }
 }  // namespace internal
 }  // namespace simdjson
-} // namespace safetensors
+}  // namespace minijson
 
 #endif  // !MINIJSON_USE_STRTOD
 
@@ -4802,8 +4802,8 @@ bool save_to_memory(const safetensors_t &st, std::vector<uint8_t> *dst,
   if ((header_size % 8) != 0) {
     pad_bytes = 8 - (header_size % 8);
   }
-  printf("header_size = %d\n", int(header_size));
-  printf("pad_bytes = %d\n", int(pad_bytes));
+  //printf("header_size = %d\n", int(header_size));
+  //printf("pad_bytes = %d\n", int(pad_bytes));
   size_t padded_header_size = header_size + pad_bytes;
   dst->resize(8 + padded_header_size + databuffer_size);
 
