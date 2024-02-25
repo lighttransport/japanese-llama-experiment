@@ -7,6 +7,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include "ghc/filesystem.hpp"
+
 #include "exact-dedup.hh"
 
 //
@@ -33,8 +35,10 @@
 #include "safetensors.hh"
 //
 
+namespace fs = ghc::filesystem;
+
 static bool zstd_compress_to_file(const void *buf, const size_t size,
-                                  const char *fname) {
+                                  const char *fname, const int comp_level) {
   size_t cBuffSize = ZSTD_compressBound(size);
 
   /* Compress.
@@ -44,7 +48,7 @@ static bool zstd_compress_to_file(const void *buf, const size_t size,
   void *const cBuff = malloc_orDie(cBuffSize);
 
   size_t const cSize =
-      ZSTD_compress(cBuff, cBuffSize, buf, size, /* comp_level */ 7);
+      ZSTD_compress(cBuff, cBuffSize, buf, size, comp_level);
   CHECK_ZSTD(cSize);
 
   saveFile_orDie(fname, cBuff, cSize);
@@ -59,7 +63,7 @@ static bool zstd_compress_to_file(const void *buf, const size_t size,
 }
 
 bool saveSuffixArray(const std::string &filename, const uint8_t *addr,
-                     const size_t bytes, bool use_lz4) {
+                     const size_t bytes, bool use_lz4, int comp_level) {
   if (use_lz4) {
     FILE *fp = fopen(filename.c_str(), "wb");
     if (!fp) {
@@ -89,7 +93,7 @@ bool saveSuffixArray(const std::string &filename, const uint8_t *addr,
   } else {
     // zstd
     bool ret = zstd_compress_to_file(reinterpret_cast<const void *>(addr),
-                                     bytes, filename.c_str());
+                                     bytes, filename.c_str(), comp_level);
     if (!ret) {
       fprintf(stderr, "ZSTD compress&save file failed: %s\n", filename.c_str());
       exit(-1);
@@ -360,7 +364,7 @@ bool build_tokenizer(nanotokenizer::CedarTrieTokenizer &tok, const std::string &
   std::map<std::string, int> str_to_id_map;
 
   for (nlohmann::json::iterator it = j.begin(); it != j.end(); ++it) {
-    std::cout << "str " << it.key() << ", v " << int(it.value()) << "\n";
+    //std::cout << "str " << it.key() << ", v " << int(it.value()) << "\n";
     str_to_id_map[it.key()] = int(it.value());
   }
 
@@ -373,28 +377,42 @@ bool build_tokenizer(nanotokenizer::CedarTrieTokenizer &tok, const std::string &
   return true;
 }
 
+void test(const nanotokenizer::CedarTrieTokenizer &tokenizer, std::string &input_str) {
+
+}
+
 void print_help() {
+
+  std::cout << "exact_dedup OPTIONS input.jsonl.zstd\n";
+  std::cout << "\n";
+  std::cout << "OPTIONS\n";
+  std::cout << "\n";
+  std::cout << "--directory(-d) DIR  : Process files in the directory\n";
+  std::cout << "--outdir(-o) DIR     : Output directory\n";
   std::cout << "--tokenize(-t)       : Tokenize input text\n";
-  std::cout << "--lz4(-4)            : Use LZ4 compression(default use ZSTD)\n";
+  std::cout << "--vocab(-b) FILENAME : Specify Vocab JSON file for tokenization\n";
+  std::cout << "--lz4(-4)            : Use LZ4 compression to built Suffix Array(default use ZSTD)\n";
+  std::cout << "--zcomp_level(-z)    : Compression level for ZSTD compression. default 9\n";
   std::cout << "--text_key(-k)       : Specify JSON key for text data(default `text`)\n";
-  std::cout << "--vocab(-o) FILENAME : Specify Vocab JSON file\n";
-  std::cout << "--codepoint(-c)      : Use codepoint representation of UTF-8 character.\n";
+  std::cout << "--codepoint(-c)      : Use codepoint representation of UTF-8 character(faster tokenization).\n";
   std::cout << "--help(-h)           : Print this help\n";
 
 }
 
 int main(int argc, char **argv) {
-  std::string filename = "../../test_data/bora.jsonl.zst";
-  bool tokenize{false};
-  bool use_lz4{false};
 
-  struct optparse_long longopts[] = {{"tokenize", 't', OPTPARSE_NONE},
-                                     {"lz4", '4', OPTPARSE_NONE},
-                                     {"text_key", 'k', OPTPARSE_REQUIRED},
-                                     {"vocab", 'o', OPTPARSE_REQUIRED},
-                                     {"codepoint", 'c', OPTPARSE_NONE},
+  struct optparse_long longopts[] = {{"indir", 'd', OPTPARSE_REQUIRED},
+                                     {"outdir", 'o', OPTPARSE_REQUIRED},
+                                     {"zcomp_level", 'z', OPTPARSE_REQUIRED},
                                      {"help", 'h', OPTPARSE_NONE},
                                      {0}};
+
+  int zcomp_level = 9;
+
+  // default: Read a file.
+  std::string indir;
+  std::string outdir{"sa_out"};
+  std::string filename = "sa_out/../../test_data/bora.jsonl.zst";
 
   std::string vocab_json_filename{"../../models/rwkv_vocab_v20230424-ja-emo-kao.json"};
   std::string text_key{"text"};
@@ -415,11 +433,21 @@ int main(int argc, char **argv) {
       case '4':
         use_lz4 = true;
         break;
-      case 'o':
+      case 'b':
         vocab_json_filename = options.optarg;
         break;
       case 'c':
         use_codepoint = true;
+        break;
+      case 'd':
+        indir = options.optarg;
+        break;
+      case 'o':
+        outdir = options.optarg;
+        break;
+      case 'z':
+        // zstd itself supports level up to 22, but 15+ requires not prectical to use since it comsumes lots of time for compression
+        zcomp_level = (std::max)(1, (std::min)(15, std::atoi(options.optarg)));
         break;
       case 'h':
         print_help();
@@ -431,9 +459,18 @@ int main(int argc, char **argv) {
     }
   }
 
-  char *arg;
-  while ((arg = optparse_arg(&options))) {
-    printf("%s\n", arg);
+  char *input_file_arg = optparse_arg(&options);
+  if (input_file_arg) {
+    filename = std::string(input_file_arg);
+  }
+
+  fs::path outdir_path(outdir);
+
+  if (!fs::exists(outdir_path)) {
+    if (!fs::create_directory(outdir_path)) {
+      std::cerr << "Failed to create directory: " << outdir_path << "\n";
+      exit(-1);
+    }
   }
 
   int total = 1;
@@ -449,22 +486,24 @@ int main(int argc, char **argv) {
 
   std::string out_filename = "output-sa";
 
-  nanotokenizer::CedarTrieTokenizer tokenizer(use_codepoint);
-  
   if (tokenize) {
-    if (!build_tokenizer(tokenizer, vocab_json_filename)) {
+    std::unique_ptr<nanotokenizer::CedarTrieTokenizer> tokenizer(new nanotokenizer::CedarTrieTokenizer(use_codepoint));
+  
+    if (!build_tokenizer(*tokenizer, vocab_json_filename)) {
       exit(-1);
     }
     out_filename += "-tokenized";
 
     std::vector<int> input_ids;
     std::string s(texts.begin(), texts.begin() + texts.size());
-    if (!tokenizer.encode(s, input_ids)) {
+    if (!tokenizer->encode(s, input_ids)) {
       fprintf(stderr, "tokenize failed.\n");
       exit(-1);
     }
 
     std::vector<uint16_t> input_ids_u16;
+    input_ids_u16.resize(input_ids.size());
+
     for (size_t i = 0; i < input_ids.size(); i++) {
       if ((input_ids[i] < 0) || (input_ids[i] > (std::numeric_limits<uint16_t>::max)())) {
         fprintf(stderr, "token id must be in range [0, 65535]\n");
@@ -473,6 +512,7 @@ int main(int argc, char **argv) {
       input_ids_u16[i] = uint16_t(input_ids[i]);
     }
     sa = compute_suffix_array_u16(input_ids_u16);
+
   } else {
     sa = compute_suffix_array_bytes(texts);
   }
@@ -482,8 +522,11 @@ int main(int argc, char **argv) {
   } else {
     out_filename += ".zstd";
   }
-  if (!saveSuffixArray(out_filename, reinterpret_cast<const uint8_t *>(sa.data()),
-                       sa.size() * sizeof(int32_t), use_lz4)) {
+
+  fs::path out_filepath = outdir_path / fs::path(out_filename);
+
+  if (!saveSuffixArray(out_filepath, reinterpret_cast<const uint8_t *>(sa.data()),
+                       sa.size() * sizeof(int32_t), use_lz4, zcomp_level)) {
     fprintf(stderr, "Failed to save suffix array.");
     exit(-1);
   }
@@ -491,6 +534,7 @@ int main(int argc, char **argv) {
   ++bar;
 
   std::cout << std::flush;
+
 
   return EXIT_SUCCESS;
 }
