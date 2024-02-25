@@ -85,7 +85,8 @@ static bool zstd_compress_to_memory(const void *buf, const size_t size,
 }
 
 bool saveSuffixArray(const std::string &filename, const uint8_t *addr,
-                     const size_t bytes, bool use_lz4, int comp_level) {
+                     const size_t bytes, int comp_level) {
+#if 0 // Disable lz4 since it is not efficient than zstd 
   if (use_lz4) {
     FILE *fp = fopen(filename.c_str(), "wb");
     if (!fp) {
@@ -111,21 +112,19 @@ bool saveSuffixArray(const std::string &filename, const uint8_t *addr,
       fprintf(stderr, "LZ4F_writeClose: %s\n", LZ4F_getErrorName(ret));
       exit(-1);
     }
+#endif
 
-  } else {
-    // zstd
-    bool ret = zstd_compress_to_file(reinterpret_cast<const void *>(addr),
-                                     bytes, filename.c_str(), comp_level);
-    if (!ret) {
-      fprintf(stderr, "ZSTD compress&save file failed: %s\n", filename.c_str());
-      exit(-1);
-    }
+  // zstd
+  bool ret = zstd_compress_to_file(reinterpret_cast<const void *>(addr),
+                                   bytes, filename.c_str(), comp_level);
+  if (!ret) {
+    fprintf(stderr, "ZSTD compress&save file failed: %s\n", filename.c_str());
+    exit(-1);
   }
 
   return true;
 }
 
-// zstd compression only
 bool saveSuffixArraySafetensor(const std::string &input_filename,
                                const std::string &vocab_filename,
                                bool is_tokenized,
@@ -460,7 +459,7 @@ void test(const nanotokenizer::CedarTrieTokenizer &tokenizer, std::string &input
 
 void print_help() {
 
-  std::cout << "exact_dedup OPTIONS input.sentence.txt\n";
+  std::cout << "exact_dedup OPTIONS input.jsonl.zstd\n";
   std::cout << "\n";
   std::cout << "OPTIONS\n";
   std::cout << "\n";
@@ -478,8 +477,8 @@ int main(int argc, char **argv) {
 
   struct optparse_long longopts[] = {{"indir", 'd', OPTPARSE_REQUIRED},
                                      {"outdir", 'o', OPTPARSE_REQUIRED},
-                                     {"tokenize", 't', OPTPARSE_NONE},
-                                     {"codepoint", 'c', OPTPARSE_NONE},
+                                     {"tokenize", 't', OPTPARSE_REQUIRED},
+                                     {"codepoint", 'c', OPTPARSE_REQUIRED},
                                      {"vocab", 'b', OPTPARSE_REQUIRED},
                                      {"zcomp_level", 'z', OPTPARSE_REQUIRED},
                                      {"help", 'h', OPTPARSE_NONE},
@@ -493,9 +492,9 @@ int main(int argc, char **argv) {
   std::string filename = "sa_out/output-sa.safetensors";
 
   bool tokenize{false};
+  bool use_codepoint{false};
   std::string vocab_json_filename{"../../models/rwkv_vocab_v20230424-ja-emo-kao.json"};
   std::string text_key{"text"};
-  bool use_codepoint{false};
 
   int option;
   struct optparse options;
