@@ -14,9 +14,8 @@
 #include "glob.hpp"
 //
 
-#include "lz4file.h"
-
 #include "json.hpp"
+#include "lz4file.h"
 #include "rwkv_world_tokenizer_cedar.hh"
 
 //
@@ -24,12 +23,11 @@
 #include "optparse.h"
 //
 
+#include "common.h"  // from zstd example
 #include "pbar.hpp"
 
-#include "common.h"  // from zstd example
-
 //
-#define SAFETENSORS_IMPLEMENTATION
+#define SAFETENSORS_CPP_IMPLEMENTATION
 #include "safetensors.hh"
 //
 
@@ -52,6 +50,30 @@ static bool zstd_compress_to_file(const void *buf, const size_t size,
   /* success */
   printf("\nzstd compress: %25s : %6u -> %7u - %s \n", fname, (unsigned)size,
          (unsigned)cSize, fname);
+
+  free(cBuff);
+
+  return true;
+}
+
+static bool zstd_compress_to_memory(const void *buf, const size_t size,
+                                    std::vector<uint8_t> &mem) {
+  size_t cBuffSize = ZSTD_compressBound(size);
+
+  /* Compress.
+   * If you are doing many compressions, you may want to reuse the context.
+   * See the multiple_simple_compression.c example.
+   */
+  void *const cBuff = malloc_orDie(cBuffSize);
+
+  size_t const cSize =
+      ZSTD_compress(cBuff, cBuffSize, buf, size, /* comp_level */ 7);
+  CHECK_ZSTD(cSize);
+
+  printf("\nzstd compress: %6u -> %7u \n", (unsigned)size, (unsigned)cSize);
+
+  mem.resize(cSize);
+  memcpy(mem.data(), cBuff, cSize);
 
   free(cBuff);
 
@@ -94,6 +116,63 @@ bool saveSuffixArray(const std::string &filename, const uint8_t *addr,
       fprintf(stderr, "ZSTD compress&save file failed: %s\n", filename.c_str());
       exit(-1);
     }
+  }
+
+  return true;
+}
+
+// zstd compression only
+bool saveSuffixArraySafetensor(const std::string &input_filename,
+                               const std::string &vocab_filename,
+                               bool is_tokenized,
+                               bool use_codepoint,
+                               const std::string &st_filename,
+                               const uint8_t *addr, const size_t bytes) {
+  std::vector<uint8_t> sa;
+
+  bool ret =
+      zstd_compress_to_memory(reinterpret_cast<const void *>(addr), bytes, sa);
+
+  if (!ret) {
+    fprintf(stderr, "ZSTD compress failed: %s\n", input_filename.c_str());
+    exit(-1);
+  }
+
+  safetensors::safetensors_t st;
+
+  st.storage.resize(sa.size());
+  memcpy(st.storage.data(), sa.data(), sa.size());
+
+  size_t sa_offset = 0;
+  safetensors::tensor_t tensor;
+  tensor.dtype = safetensors::dtype::kUINT8;
+  tensor.data_offsets[0] = sa_offset;
+  tensor.data_offsets[1] = sa_offset + sa.size();
+  tensor.shape.resize(1);
+  tensor.shape[0] = sa.size();
+
+  st.tensors.insert("suffix_array", tensor);
+
+  st.metadata.insert("input_filename", input_filename);
+  st.metadata.insert("compression", "zstd");
+  st.metadata.insert("tokenized", is_tokenized ? "true" : "false");
+  if (is_tokenized) {
+    st.metadata.insert("use_codepoint", use_codepoint ? "true" : "false");
+  }
+  if (is_tokenized) {
+    st.metadata.insert("vocab_filename", vocab_filename);
+  }
+
+  std::string warn, err;
+  ret = safetensors::save_to_file(st, st_filename, &warn, &err);
+
+  if (warn.size()) {
+    std::cout << "SaveToSafetensors WARN: " << warn << "\n";
+  }
+
+  if (!ret) {
+    std::cerr << "Failed to save safetensors: " << err << "\n";
+    exit(-1);
   }
 
   return true;
@@ -227,7 +306,7 @@ static std::string zstd_decompress(const char *fname) {
   CHECK(dSize == rSize, "Impossible because zstd will check this condition!");
 
   /* success */
-  //printf("\n%25s : %6u -> %7u \n", fname, (unsigned)cSize, (unsigned)rSize);
+  // printf("\n%25s : %6u -> %7u \n", fname, (unsigned)cSize, (unsigned)rSize);
 
   // assume decoded data is utf-8 string.
   std::string buf(reinterpret_cast<const char *>(rBuff), dSize);
@@ -309,7 +388,7 @@ std::vector<uint8_t> flatten_texts(const std::vector<nlohmann::json> &js,
     std::string text = j[text_key];
     dst.insert(dst.end(), text.begin(), text.end());
 
-    // Use 3(end-of-text) as delimiter 
+    // Use 3(end-of-text) as delimiter
     dst.push_back(3);
   }
 
@@ -332,8 +411,7 @@ std::vector<int32_t> compute_suffix_array_bytes(
   return sa;
 }
 
-std::vector<int> compute_suffix_array_u16(
-    const std::vector<uint16_t> &tokens) {
+std::vector<int> compute_suffix_array_u16(const std::vector<uint16_t> &tokens) {
   if (tokens.size() > std::numeric_limits<int32_t>::max()) {
     fprintf(stderr, "Input must be 2GB or less tokens.\n");
     exit(-1);
@@ -348,11 +426,10 @@ std::vector<int> compute_suffix_array_u16(
   return sa;
 }
 
-
 bool build(const uint8_t *addr, size_t n, std::vector<int32_t> &sa);
 
-bool build_tokenizer(nanotokenizer::CedarTrieTokenizer &tok, const std::string &vocab_filename) {
-
+bool build_tokenizer(nanotokenizer::CedarTrieTokenizer &tok,
+                     const std::string &vocab_filename) {
   std::ifstream ifs(vocab_filename);
 
   nlohmann::json j = nlohmann::json::parse(ifs);
@@ -376,11 +453,12 @@ bool build_tokenizer(nanotokenizer::CedarTrieTokenizer &tok, const std::string &
 void print_help() {
   std::cout << "--tokenize(-t)       : Tokenize input text\n";
   std::cout << "--lz4(-4)            : Use LZ4 compression(default use ZSTD)\n";
-  std::cout << "--text_key(-k)       : Specify JSON key for text data(default `text`)\n";
+  std::cout << "--text_key(-k)       : Specify JSON key for text data(default "
+               "`text`)\n";
   std::cout << "--vocab(-o) FILENAME : Specify Vocab JSON file\n";
-  std::cout << "--codepoint(-c)      : Use codepoint representation of UTF-8 character.\n";
+  std::cout << "--codepoint(-c)      : Use codepoint representation of UTF-8 "
+               "character.\n";
   std::cout << "--help(-h)           : Print this help\n";
-
 }
 
 int main(int argc, char **argv) {
@@ -396,7 +474,8 @@ int main(int argc, char **argv) {
                                      {"help", 'h', OPTPARSE_NONE},
                                      {0}};
 
-  std::string vocab_json_filename{"../../models/rwkv_vocab_v20230424-ja-emo-kao.json"};
+  std::string vocab_json_filename{
+      "../../models/rwkv_vocab_v20230424-ja-emo-kao.json"};
   std::string text_key{"text"};
   bool use_codepoint{false};
 
@@ -450,7 +529,7 @@ int main(int argc, char **argv) {
   std::string out_filename = "output-sa";
 
   nanotokenizer::CedarTrieTokenizer tokenizer(use_codepoint);
-  
+
   if (tokenize) {
     if (!build_tokenizer(tokenizer, vocab_json_filename)) {
       exit(-1);
@@ -466,7 +545,8 @@ int main(int argc, char **argv) {
 
     std::vector<uint16_t> input_ids_u16;
     for (size_t i = 0; i < input_ids.size(); i++) {
-      if ((input_ids[i] < 0) || (input_ids[i] > (std::numeric_limits<uint16_t>::max)())) {
+      if ((input_ids[i] < 0) ||
+          (input_ids[i] > (std::numeric_limits<uint16_t>::max)())) {
         fprintf(stderr, "token id must be in range [0, 65535]\n");
         exit(-1);
       }
@@ -477,13 +557,22 @@ int main(int argc, char **argv) {
     sa = compute_suffix_array_bytes(texts);
   }
 
-  if (use_lz4) {
-    out_filename += ".lz4";
-  } else {
-    out_filename += ".zstd";
-  }
-  if (!saveSuffixArray(out_filename, reinterpret_cast<const uint8_t *>(sa.data()),
-                       sa.size() * sizeof(int32_t), use_lz4)) {
+  //if (use_lz4) {
+  //  out_filename += ".lz4";
+  //} else {
+  //  out_filename += ".zstd";
+  //}
+  //if (!saveSuffixArray(out_filename,
+  //                     reinterpret_cast<const uint8_t *>(sa.data()),
+  //                     sa.size() * sizeof(int32_t), use_lz4)) {
+  //  fprintf(stderr, "Failed to save suffix array.");
+  //  exit(-1);
+  //}
+
+  out_filename += ".safetensors";
+  if (!saveSuffixArraySafetensor(filename, vocab_json_filename, tokenize, use_codepoint, out_filename,
+                       reinterpret_cast<const uint8_t *>(sa.data()),
+                       sa.size() * sizeof(int32_t))) {
     fprintf(stderr, "Failed to save suffix array.");
     exit(-1);
   }
