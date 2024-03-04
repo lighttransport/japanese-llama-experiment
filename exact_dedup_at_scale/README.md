@@ -1,0 +1,3 @@
+- [x] ./build_sa : Build suffix array
+ - Save suffix array data with safetensors format.
+- [ ] ./exact_dedup : Do exact dedup with built suffix array
