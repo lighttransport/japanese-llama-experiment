@@ -470,7 +470,7 @@ void print_help() {
   std::cout << "--vocab(-b) FILENAME : Specify Vocab JSON file for tokenization\n";
   std::cout << "--zcomp_level(-z)    : Compression level for ZSTD compression. default 9\n";
   std::cout << "--text_key(-k)       : Specify JSON key for text data(default `text`)\n";
-  std::cout << "--codepoint(-c)      : Use codepoint representation of UTF-8 character(faster tokenization).\n";
+  std::cout << "--codepoint(-c)      : Use codepoint representation of UTF-8 character(slightly faster tokenization).\n";
   std::cout << "--help(-h)           : Print this help\n";
 }
 
@@ -549,76 +549,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  int total = 1;
-  pbar::pbar bar(total, /* ncols */ 100, "[Task]");
-
-  bar.enable_recalc_console_width(1);
-  bar.init();
-
-  std::vector<nlohmann::json> js = load_jsonl_zstd(filename);
-  std::vector<uint8_t> texts = flatten_texts(js, text_key);
-
-  std::vector<int32_t> sa;
-
-  std::string out_filename = "output-sa";
-
-  if (tokenize) {
-    std::unique_ptr<nanotokenizer::CedarTrieTokenizer> tokenizer(new nanotokenizer::CedarTrieTokenizer(use_codepoint));
-  
-    if (!build_tokenizer(*tokenizer, vocab_json_filename)) {
-      exit(-1);
-    }
-    out_filename += "-tokenized";
-
-    std::vector<int> input_ids;
-    std::string s(texts.begin(), texts.begin() + texts.size());
-    if (!tokenizer->encode(s, input_ids)) {
-      fprintf(stderr, "tokenize failed.\n");
-      exit(-1);
-    }
-
-    std::vector<uint16_t> input_ids_u16;
-    input_ids_u16.resize(input_ids.size());
-
-    for (size_t i = 0; i < input_ids.size(); i++) {
-      if ((input_ids[i] < 0) ||
-          (input_ids[i] > (std::numeric_limits<uint16_t>::max)())) {
-        fprintf(stderr, "token id must be in range [0, 65535]\n");
-        exit(-1);
-      }
-      input_ids_u16[i] = uint16_t(input_ids[i]);
-    }
-    sa = compute_suffix_array_u16(input_ids_u16);
-
-  } else {
-    sa = compute_suffix_array_bytes(texts);
-  }
-
-  //if (use_lz4) {
-  //  out_filename += ".lz4";
-  //} else {
-  //  out_filename += ".zstd";
-  //}
-  //if (!saveSuffixArray(out_filename,
-  //                     reinterpret_cast<const uint8_t *>(sa.data()),
-  //                     sa.size() * sizeof(int32_t), use_lz4)) {
-  //  fprintf(stderr, "Failed to save suffix array.");
-  //  exit(-1);
-  //}
-
-  out_filename += ".safetensors";
-  fs::path out_filepath = outdir_path / fs::path(out_filename);
-  if (!saveSuffixArraySafetensor(out_filepath, vocab_json_filename, tokenize, use_codepoint, out_filename,
-                       reinterpret_cast<const uint8_t *>(sa.data()),
-                       sa.size() * sizeof(int32_t))) {
-    fprintf(stderr, "Failed to save suffix array.");
-    exit(-1);
-  }
-
-  ++bar;
-
-  std::cout << std::flush;
-
+  std::cout << "TODO\n";
 
   return EXIT_SUCCESS;
 }

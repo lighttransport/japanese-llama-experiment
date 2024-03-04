@@ -86,7 +86,7 @@ static bool zstd_compress_to_memory(const void *buf, const size_t size,
 
 bool saveSuffixArray(const std::string &filename, const uint8_t *addr,
                      const size_t bytes, int comp_level) {
-#if 0 // Disable lz4 since it is not efficient than zstd 
+#if 0 // Disable lz4 since it is not efficient than zstd
   if (use_lz4) {
     FILE *fp = fopen(filename.c_str(), "wb");
     if (!fp) {
@@ -131,6 +131,7 @@ bool saveSuffixArraySafetensor(const std::string &input_filename,
                                bool use_codepoint,
                                const std::string &st_filename,
                                const uint8_t *addr, const size_t bytes) {
+
   std::vector<uint8_t> sa;
 
   bool ret =
@@ -453,8 +454,32 @@ bool build_tokenizer(nanotokenizer::CedarTrieTokenizer &tok,
   return true;
 }
 
-void test(const nanotokenizer::CedarTrieTokenizer &tokenizer, std::string &input_str) {
+void test_tokenize(const nanotokenizer::CedarTrieTokenizer &tokenizer, const std::string &input_str, const std::vector<uint16_t> &input_ids_u16) {
+  std::string str;
 
+  if (!tokenizer.decode(input_ids_u16, str)) {
+    std::cerr << "Failed to decode tokenized ids.\n";
+    exit(-1);
+  }
+
+  if (input_str != str) {
+    std::cerr << "Tokenization failure\n";
+    std::cerr << "InputStr: " << input_str << "\n";
+    std::cerr << "InputIds: ";
+      std::cerr << "[";
+      for (size_t i = 0; i < input_ids_u16.size(); i++) {
+        if (i > 0) {
+          std::cerr << ", ";
+        }
+        std::cerr << tokenizer.str_from_id(input_ids_u16[i]) << " : " << input_ids_u16[i];
+      }
+      std::cerr << "]\n";
+
+    std::cerr << "Decoded: " << str << "\n";
+    exit(-1);
+  }
+
+  std::cout << "Test tokenization OK.\n";
 }
 
 void print_help() {
@@ -470,6 +495,7 @@ void print_help() {
   std::cout << "--zcomp_level(-z)    : Compression level for ZSTD compression. default 9\n";
   std::cout << "--text_key(-k)       : Specify JSON key for text data(default `text`)\n";
   std::cout << "--codepoint(-c)      : Use codepoint representation of UTF-8 character(faster tokenization).\n";
+  std::cout << "--test(-s)           : Do tests.\n";
   std::cout << "--help(-h)           : Print this help\n";
 }
 
@@ -477,19 +503,21 @@ int main(int argc, char **argv) {
 
   struct optparse_long longopts[] = {{"indir", 'd', OPTPARSE_REQUIRED},
                                      {"outdir", 'o', OPTPARSE_REQUIRED},
-                                     {"tokenize", 't', OPTPARSE_REQUIRED},
-                                     {"codepoint", 'c', OPTPARSE_REQUIRED},
+                                     {"tokenize", 't', OPTPARSE_NONE},
+                                     {"codepoint", 'c', OPTPARSE_NONE},
                                      {"vocab", 'b', OPTPARSE_REQUIRED},
                                      {"zcomp_level", 'z', OPTPARSE_REQUIRED},
+                                     {"test", 's', OPTPARSE_NONE},
                                      {"help", 'h', OPTPARSE_NONE},
                                      {0}};
 
   int zcomp_level = 9;
+  bool do_test{false};
 
   // default: Read a file.
   std::string indir;
   std::string outdir{"sa_out"};
-  std::string filename = "sa_out/output-sa.safetensors";
+  std::string filename = "../../test_data/bora.jsonl.zst";
 
   bool tokenize{false};
   bool use_codepoint{false};
@@ -519,6 +547,9 @@ int main(int argc, char **argv) {
         break;
       case 'o':
         outdir = options.optarg;
+        break;
+      case 's':
+        do_test = true;
         break;
       case 'z':
         // zstd itself supports level up to 22, but 15+ requires not prectical to use since it comsumes lots of time for compression
@@ -563,7 +594,7 @@ int main(int argc, char **argv) {
 
   if (tokenize) {
     std::unique_ptr<nanotokenizer::CedarTrieTokenizer> tokenizer(new nanotokenizer::CedarTrieTokenizer(use_codepoint));
-  
+
     if (!build_tokenizer(*tokenizer, vocab_json_filename)) {
       exit(-1);
     }
@@ -587,6 +618,11 @@ int main(int argc, char **argv) {
       }
       input_ids_u16[i] = uint16_t(input_ids[i]);
     }
+
+    if (do_test) {
+      test_tokenize(*tokenizer, s, input_ids_u16);
+    }
+
     sa = compute_suffix_array_u16(input_ids_u16);
 
   } else {

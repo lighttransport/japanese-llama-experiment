@@ -143,7 +143,7 @@ class CedarTrieTokenizer {
     return true;
   }
 
-  bool decode(const std::vector<int> &input_ids, std::string &output_str) {
+  bool decode(const std::vector<int> &input_ids, std::string &output_str) const {
     std::string dst;
 
     for (size_t i = 0; i < input_ids.size(); i++) {
@@ -167,7 +167,7 @@ class CedarTrieTokenizer {
         return false;
       }
 
-      dst += _id_to_str_map[input_ids[i]];
+      dst += _id_to_str_map.at(input_ids[i]);
     }
 
     output_str = dst;
@@ -175,7 +175,40 @@ class CedarTrieTokenizer {
     return true;
   }
 
-  std::string str_from_id(int id) {
+  bool decode(const std::vector<uint16_t> &input_ids, std::string &output_str) const {
+    std::string dst;
+
+    for (size_t i = 0; i < input_ids.size(); i++) {
+      if ((input_ids[i] > 0) && (input_ids[i] < (256 + _utf8_id_offset))) {
+        std::string u8char;
+        if (!utf8_char_from_ids(input_ids.data(), i, input_ids.size(),
+                                u8char, _utf8_id_offset)) {
+          std::cerr << "utf8 reconstruct failed.\n";
+          return false;
+        }
+
+        i += u8char.size() - 1;
+
+        dst += u8char;
+
+        continue;
+      }
+
+      if (!_id_to_str_map.count(input_ids[i])) {
+        std::cerr << "id not found: " << input_ids[i] << "\n";
+        return false;
+      }
+
+      dst += _id_to_str_map.at(input_ids[i]);
+    }
+
+    output_str = dst;
+
+    return true;
+  }
+
+
+  std::string str_from_id(int id) const {
     if (_id_to_str_map.count(id)) {
       return _id_to_str_map.at(id);
     }
@@ -277,7 +310,7 @@ class CedarTrieTokenizer {
   int _utf8_id_offset{1};  // ASCII character is +1'ed in RWKV world vocab
   int _empty_char_id{3319};
 
-  inline uint32_t utf8_len(const uint8_t c) {
+  inline uint32_t utf8_len(const uint8_t c) const {
     if (c <= 127) {
       // ascii
       return 1;
@@ -295,7 +328,44 @@ class CedarTrieTokenizer {
 
   // Reconstruct UTF-8 bytes from int sequence(UTF-8 encoded)
   inline bool utf8_char_from_ids(const int *addr, size_t loc, size_t n,
-                                 std::string &str, int id_offset = 1) {
+                                 std::string &str, int id_offset = 1) const {
+    if (loc >= n) {
+      return false;
+    }
+
+    int start_c = addr[loc] - id_offset;
+    if ((start_c < 0) || (start_c > 255)) {
+      return false;
+    }
+
+    uint32_t len = utf8_len(uint8_t(start_c));
+
+    if (len == 0) {
+      return false;
+    }
+
+    if ((loc + len) > n) {
+      return false;
+    }
+
+    str = "";
+    std::vector<uint8_t> buf;
+    for (size_t i = 0; i < len; i++) {
+      int ic = addr[loc + i] - id_offset;
+      if ((ic < 0) || (ic > 255)) {
+        return false;
+      }
+      buf.push_back(uint8_t(ic));
+    }
+
+    str = std::string(reinterpret_cast<const char *>(buf.data()), buf.size());
+
+    return true;
+  }
+
+  // Reconstruct UTF-8 bytes from int sequence(UTF-8 encoded)
+  inline bool utf8_char_from_ids(const uint16_t *addr, size_t loc, size_t n,
+                                 std::string &str, int id_offset = 1) const {
     if (loc >= n) {
       return false;
     }
