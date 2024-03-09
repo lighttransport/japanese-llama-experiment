@@ -21,6 +21,7 @@ set(FUZZYDEDUP_SOURCES
   fuzzy-dedup.cc
   ../cpp/zstd.c
   ../cpp/json.hpp
+  ../cpp/dedup.cc
   )
 
 add_executable(${PROJECT_NAME} ${FUZZYDEDUP_SOURCES} ${FUZZYDEDUP_DEP_SOURCES})

@@ -218,6 +218,13 @@ class CedarTrieTokenizer {
     return std::string();
   }
 
+  int id_from_str(const std::string &s) const {
+    if (_str_to_id_map.count(s)) {
+      return _str_to_id_map.at(s);
+    }
+    return -1;
+  }
+
  private:
   itrie_t _ida; // int key
   trie_t _cda; // char key

@@ -1,15 +1,73 @@
+#include "dedup.hh"
+
 #include <algorithm>
 #include <clocale>
 #include <cstdint>
+#include <mutex>
 #include <set>
-#include <vector>
-
 #include <thread>
-#include <mutex>
-#include <mutex>
-#include <algorithm>
+#include <vector>
+#include <unordered_set>
 
-#include "dedup.hh"
+#include "rwkv_world_tokenizer_cedar.hh"
+
+static std::unordered_set<std::string> sUNICODE_PUNCT = {
+    "，", "。", "、", "„",  "”",  "“",  "«",  "»",  "１", "」",
+    "「", "《", "》", "´",  "∶",  "：", "？", "！", "（", "）",
+    "；", "–",  "—",  "．", "～", "’",  "…",  "━",  "〈", "〉",
+    "【", "】", "％", "►",  ":",  ";",  "-",  ",",  ".",  "?",
+    "!",  ")",  "(",  "<",  ">",  "[",  "]",  "\"", "'"};
+
+std::unordered_set<uint16_t> build_punctuation_tokens(
+  nanotokenizer::CedarTrieTokenizer &tokenizer) {
+
+  std::unordered_set<uint16_t> s;
+
+  for (const auto &p : sUNICODE_PUNCT) {
+    int tok_id = tokenizer.id_from_str(p);
+    if (tok_id > -1) {
+      s.insert(uint16_t(tok_id));
+    }
+  }
+
+  return s;
+}
+
+std::vector<uint16_t> normalize_for_dedup(const std::vector<uint16_t> &text,
+  nanotokenizer::CedarTrieTokenizer &tokenizer,
+  const std::unordered_set<uint16_t> &punct_table) {
+
+  std::vector<uint16_t> dst;
+
+  int _ws_id = tokenizer.id_from_str(" ");
+  if (_ws_id < 0) {
+    // ???
+    std::cerr << "No whitespace token id in the tokenizer.\n";
+    return dst;
+  }
+
+  uint16_t ws_id = uint16_t(_ws_id);
+
+  // Assume input string(before tokenization) is normalized with NFKC
+  //
+  // 1. remove whitespaces.
+  // 2. remove punctuation.
+
+  for (size_t i = 0; i < text.size(); i++) {
+    uint16_t id = i;
+    if (id == ws_id) {
+      continue;
+    }
+
+    if (punct_table.count(id)) {
+      continue;
+    }
+
+    dst.push_back(id);
+  }
+
+  return dst;
+}
 
 static uint32_t cpu_count() {
   return (std::max)(1u, std::thread::hardware_concurrency());
@@ -36,11 +94,8 @@ double compute_jaccard(std::vector<uint32_t> &a, std::vector<uint32_t> &b) {
   return double(result_i.size()) / double(result_u.size());
 }
 
-
-bool dedup_stream(
-  const std::vector<std::vector<uint8_t>> &lshs,
-  std::set<std::vector<uint8_t>> &hash_store /* inout */) {
-
+bool dedup_stream(const std::vector<std::vector<uint8_t>> &lshs,
+                  std::set<std::vector<uint8_t>> &hash_store /* inout */) {
   bool duplicated{false};
 
   for (size_t i = 0; i < lshs.size(); i++) {
@@ -54,5 +109,4 @@ bool dedup_stream(
   }
 
   return duplicated;
-
 }

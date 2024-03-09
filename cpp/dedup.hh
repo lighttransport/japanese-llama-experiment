@@ -207,6 +207,8 @@ bool sort_minhashes(
   return true;
 }
 
+double compute_jaccard(std::vector<uint32_t> &a, std::vector<uint32_t> &b);
+
 
 #if 0
 ///

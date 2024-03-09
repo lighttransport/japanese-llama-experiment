@@ -94,6 +94,110 @@ inline std::vector<std::string> to_utf8_chars(const std::string &str) {
   return utf8_chars;
 }
 
+// return empty string for invalid codepoint value.
+inline std::string codepoint_to_utf8(uint32_t cp) {
+    std::string result;
+    if (cp <= 0x7f) {
+        result.push_back(cp);
+    }
+    else if (0x80 <= cp && cp <= 0x7ff) {
+        result.push_back(0xc0 | ((cp >> 6) & 0x1f));
+        result.push_back(0x80 | (cp & 0x3f));
+    }
+    else if (0x800 <= cp && cp <= 0xffff) {
+        result.push_back(0xe0 | ((cp >> 12) & 0x0f));
+        result.push_back(0x80 | ((cp >> 6) & 0x3f));
+        result.push_back(0x80 | (cp & 0x3f));
+    }
+    else if (0x10000 <= cp && cp <= 0x10ffff) {
+        result.push_back(0xf0 | ((cp >> 18) & 0x07));
+        result.push_back(0x80 | ((cp >> 12) & 0x3f));
+        result.push_back(0x80 | ((cp >> 6) & 0x3f));
+        result.push_back(0x80 | (cp & 0x3f));
+    }
+
+    return result;
+}
+
+    inline uint32_t to_codepoint(const char *s, uint32_t &len) {
+      if (!s) {
+        return ~0u;
+      }
+
+      uint32_t char_len = utf8_len(uint8_t(*s));
+
+      uint32_t code = 0;
+      if (char_len == 1) {
+        unsigned char s0 = static_cast<unsigned char>(s[0]);
+        if (s0 > 0x7f) {
+          len = 0;
+          return ~0u;
+        }
+        code = uint32_t(s0) & 0x7f;
+      } else if (char_len == 2) {
+        // 11bit: 110y-yyyx 10xx-xxxx
+        unsigned char s0 = static_cast<unsigned char>(s[0]);
+        unsigned char s1 = static_cast<unsigned char>(s[1]);
+
+        if (((s0 & 0xe0) == 0xc0) && ((s1 & 0xc0) == 0x80)) {
+          code = (uint32_t(s0 & 0x1f) << 6) | (s1 & 0x3f);
+        } else {
+          len = 0;
+          return ~0u;
+        }
+      } else if (char_len == 3) {
+        // 16bit: 1110-yyyy 10yx-xxxx 10xx-xxxx
+        unsigned char s0 = static_cast<unsigned char>(s[0]);
+        unsigned char s1 = static_cast<unsigned char>(s[1]);
+        unsigned char s2 = static_cast<unsigned char>(s[2]);
+        if (((s0 & 0xf0) == 0xe0) && ((s1 & 0xc0) == 0x80) &&
+            ((s2 & 0xc0) == 0x80)) {
+          code =
+              (uint32_t(s0 & 0xf) << 12) | (uint32_t(s1 & 0x3f) << 6) | (s2 & 0x3f);
+        } else {
+          len = 0;
+          return ~0u;
+        }
+      } else if (char_len == 4) {
+        // 21bit: 1111-0yyy 10yy-xxxx 10xx-xxxx 10xx-xxxx
+        unsigned char s0 = static_cast<unsigned char>(s[0]);
+        unsigned char s1 = static_cast<unsigned char>(s[1]);
+        unsigned char s2 = static_cast<unsigned char>(s[2]);
+        unsigned char s3 = static_cast<unsigned char>(s[3]);
+        if (((s0 & 0xf8) == 0xf0) && ((s1 & 0xc0) == 0x80) &&
+            ((s2 & 0xc0) == 0x80) && ((s2 & 0xc0) == 0x80)) {
+          code = (uint32_t(s0 & 0x7) << 18) | (uint32_t(s1 & 0x3f) << 12) |
+                 (uint32_t(s2 & 0x3f) << 6) | uint32_t(s3 & 0x3f);
+        } else {
+          len = 0;
+          return ~0u;
+        }
+      } else {
+        len = 0;
+        return ~0u;
+      }
+
+      len = char_len;
+      return code;
+    }
+
+
+inline std::vector<uint32_t> to_utf8_codepoints(const std::string &str) {
+  uint64_t sz = str.size();
+  std::vector<uint32_t> utf8_chars;
+
+  for (size_t i = 0; i <= sz;) {
+
+    uint32_t len;
+    uint32_t codepoint = to_codepoint(&str[i], len);
+
+    i += uint64_t(len);
+    utf8_chars.push_back(codepoint);
+  }
+
+  return utf8_chars;
+}
+
 // N-Gram representation with fixed buffer size.
 template<uint32_t N>
 struct NGram {
