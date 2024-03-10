@@ -258,25 +258,6 @@ inline uint32_t FNV32(const uint8_t *addr, const size_t nbytes) {
 
 }
 
-///
-/// Modify vocab id so that a vocab which contains digit character(includes Zenkaku digit) to a vocab id whose string is all composed of placeholder character
-///
-///
-/// Example(placeholder_str = "0")
-///
-/// Input
-///
-/// "012" -> 1000
-/// "125" -> 2000
-///
-/// =>
-///
-/// "000" -> 3000
-/// "012" -> 3000
-/// "125" -> 3000
-///
-///
-
 bool num_to_placeholder(
   const std::map<std::string, int> &str_to_id_map,
   const std::string &placeholder_str,

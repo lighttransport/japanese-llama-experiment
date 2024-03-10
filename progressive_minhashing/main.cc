@@ -2,10 +2,10 @@
 #include <cstdio>
 #include <future>
 #include <unordered_map>
+#include <inttypes.h>
 
 #include "ghc/filesystem.hpp"
 
-#include "exact-dedup.hh"
 
 //
 #define GLOB_USE_GHC_FILESYSTEM
@@ -30,7 +30,9 @@
 //
 
 //
+#include "dedup.hh"
 #include "fuzzy-dedup.hh"
+#include "jp_normalizer.hh"
 
 namespace fs = ghc::filesystem;
 
@@ -111,7 +113,7 @@ bool saveMinhashAsSafetensor(const std::string &input_filename,
     fprintf(stderr, "Invalid hash size.\n");
     exit(-1);
   }
-    
+
   safetensors::safetensors_t st;
 
 
@@ -428,6 +430,73 @@ std::vector<uint8_t> flatten_texts(const std::vector<nlohmann::json> &js,
   return dst;
 }
 
+bool build_tokenizer(nanotokenizer::CedarTrieTokenizer &tok,
+                     const std::string &vocab_filename) {
+  std::ifstream ifs(vocab_filename);
+
+  nlohmann::json j = nlohmann::json::parse(ifs);
+
+  std::map<std::string, int> str_to_id_map;
+
+  for (nlohmann::json::iterator it = j.begin(); it != j.end(); ++it) {
+    //std::cout << "str " << it.key() << ", v " << int(it.value()) << "\n";
+    str_to_id_map[it.key()] = int(it.value());
+  }
+
+  std::string err;
+  if (!tok.load_vocab(str_to_id_map, err)) {
+    fprintf(stderr, "Failed to setup Tokenizer: %s", err.c_str());
+    return false;
+  }
+
+  return true;
+}
+
+bool build_tokenizer_for_dedup(/* inout */nanotokenizer::CedarTrieTokenizer &tok,
+                      const std::string &vocab_filename,
+                      /* out */std::unordered_set<uint16_t> &punct_table,
+                      const std::string &placeholder_str = "0") {
+  std::ifstream ifs(vocab_filename);
+
+  nlohmann::json j = nlohmann::json::parse(ifs);
+
+  std::map<std::string, int> str_to_id_map;
+
+  for (nlohmann::json::iterator it = j.begin(); it != j.end(); ++it) {
+    //std::cout << "str " << it.key() << ", v " << int(it.value()) << "\n";
+    str_to_id_map[it.key()] = int(it.value());
+  }
+
+  std::map<std::string, int> filtered_str_to_id_map;
+  num_to_placeholder(str_to_id_map, placeholder_str, filtered_str_to_id_map);
+
+  // dbg
+  for (const auto &it: filtered_str_to_id_map) {
+    std::cout << it.first << ":" << it.second << "\n";
+  }
+
+  std::string err;
+  if (!tok.load_vocab(filtered_str_to_id_map, err)) {
+    fprintf(stderr, "Failed to setup Tokenizer: %s", err.c_str());
+    return false;
+  }
+
+  std::unordered_set<std::string> punct_strs = jpnormalizer::get_unicode_puncts();
+
+  // Build table of tokenized punctuation string
+  for (const auto &p : punct_strs) {
+    int id = tok.id_from_str(p);
+    if (id > 0) {
+      punct_table.insert(uint16_t(id));
+    } else {
+      std::cout << "Punctuation `" << p << "` is not present in vocab. Ignore this.\n";
+    }
+  }
+
+
+  return true;
+}
+
 void print_help() {
 
   std::cout << "exact_dedup OPTIONS input.jsonl.zstd\n";
@@ -446,11 +515,12 @@ void print_help() {
   std::cout << "--help(-h)           : Print this help\n";
 }
 
+
+
 int main(int argc, char **argv) {
 
   struct optparse_long longopts[] = {{"indir", 'd', OPTPARSE_REQUIRED},
                                      {"outdir", 'o', OPTPARSE_REQUIRED},
-                                     {"tokenize", 't', OPTPARSE_NONE},
                                      {"codepoint", 'c', OPTPARSE_NONE},
                                      {"vocab", 'b', OPTPARSE_REQUIRED},
                                      {"zcomp_level", 'z', OPTPARSE_REQUIRED},
@@ -465,13 +535,13 @@ int main(int argc, char **argv) {
   int zcomp_level = 9;
   bool do_test{false};
   int hashconfig = 0; // default: 9000 hashes
+  std::string num_placeholder_str = "0";
 
   // default: Read a file.
   std::string indir;
   std::string outdir{"sa_out"};
   std::string filename = "../../test_data/bora.jsonl.zst";
 
-  bool tokenize{false};
   bool use_codepoint{false};
   std::string vocab_json_filename{"../../models/rwkv_vocab_v20230424-ja-emo-kao.json"};
   std::string text_key{"text"};
@@ -482,9 +552,6 @@ int main(int argc, char **argv) {
 
   while ((option = optparse_long(&options, longopts, nullptr)) != -1) {
     switch (option) {
-      case 't':
-        tokenize = true;
-        break;
       case 'g': {
         int val = std::atoi(options.optarg);
         if (val < 0) val = 0;
@@ -558,55 +625,39 @@ int main(int argc, char **argv) {
 
   std::string out_filename = "output-sa";
 
-  if (tokenize) {
-    std::unique_ptr<nanotokenizer::CedarTrieTokenizer> tokenizer(new nanotokenizer::CedarTrieTokenizer(use_codepoint));
+  std::unique_ptr<nanotokenizer::CedarTrieTokenizer> tokenizer(new nanotokenizer::CedarTrieTokenizer(use_codepoint));
 
-    if (!build_tokenizer(*tokenizer, vocab_json_filename)) {
-      exit(-1);
-    }
-    out_filename += "-tokenized";
+  std::unordered_set<uint16_t> punct_table;
+  if (!build_tokenizer_for_dedup(*tokenizer, vocab_json_filename, punct_table, num_placeholder_str)) {
+    exit(-1);
+  }
+  out_filename += "-tokenized";
 
-    std::vector<int> input_ids;
-    std::string s(texts.begin(), texts.begin() + texts.size());
-    if (!tokenizer->encode(s, input_ids)) {
-      fprintf(stderr, "tokenize failed.\n");
-      exit(-1);
-    }
-
-    std::vector<uint16_t> input_ids_u16;
-    input_ids_u16.resize(input_ids.size());
-
-    for (size_t i = 0; i < input_ids.size(); i++) {
-      if ((input_ids[i] < 0) ||
-          (input_ids[i] > (std::numeric_limits<uint16_t>::max)())) {
-        fprintf(stderr, "token id must be in range [0, 65535]\n");
-        exit(-1);
-      }
-      input_ids_u16[i] = uint16_t(input_ids[i]);
-    }
-
-    if (do_test) {
-      test_tokenize(*tokenizer, s, input_ids_u16);
-    }
-
-    sa = compute_suffix_array_u16(input_ids_u16);
-
-  } else {
-    sa = compute_suffix_array_bytes(texts);
+  std::vector<int> input_ids;
+  std::string s(texts.begin(), texts.begin() + texts.size());
+  if (!tokenizer->encode(s, input_ids)) {
+    fprintf(stderr, "tokenize failed.\n");
+    exit(-1);
   }
 
-  //if (use_lz4) {
-  //  out_filename += ".lz4";
-  //} else {
-  //  out_filename += ".zstd";
-  //}
-  //if (!saveSuffixArray(out_filename,
-  //                     reinterpret_cast<const uint8_t *>(sa.data()),
-  //                     sa.size() * sizeof(int32_t), use_lz4)) {
-  //  fprintf(stderr, "Failed to save suffix array.");
-  //  exit(-1);
+  std::vector<uint16_t> input_ids_u16;
+  input_ids_u16.resize(input_ids.size());
+
+  for (size_t i = 0; i < input_ids.size(); i++) {
+    if ((input_ids[i] < 0) ||
+        (input_ids[i] > (std::numeric_limits<uint16_t>::max)())) {
+      fprintf(stderr, "token id must be in range [0, 65535]\n");
+      exit(-1);
+    }
+    input_ids_u16[i] = uint16_t(input_ids[i]);
+  }
+
+  //if (do_test) {
+  //  test_tokenize(*tokenizer, s, input_ids_u16);
   //}
 
+
+#if 0
   out_filename += ".safetensors";
   fs::path out_filepath = outdir_path / fs::path(out_filename);
   if (!saveSuffixArraySafetensor(out_filepath, vocab_json_filename, tokenize, use_codepoint, out_filename,
@@ -615,7 +666,9 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Failed to save suffix array.");
     exit(-1);
   }
+#endif
 
   ++bar;
 
   std::cout << std::flush;
+}

@@ -9,6 +9,7 @@
 
 #include "str-util.hh"
 #include "MurmurHash3.h"
+#include "rwkv_world_tokenizer_cedar.hh"
 
 // cityhash
 template <class T> inline void hash_combine(std::size_t& seed, const T& v)
@@ -209,6 +210,9 @@ bool sort_minhashes(
 
 double compute_jaccard(std::vector<uint32_t> &a, std::vector<uint32_t> &b);
 
+std::vector<uint16_t> normalize_for_dedup(const std::vector<uint16_t> &text,
+  nanotokenizer::CedarTrieTokenizer &tokenizer,
+  const std::unordered_set<uint16_t> &punct_table);
 
 #if 0
 ///

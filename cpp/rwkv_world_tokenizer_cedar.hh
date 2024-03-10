@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache 2.0
 // Copyright 2024 - Present, Light Transport Entertainment, Inc.
+#pragma once
 #include <fstream>
 #include <iostream>
 #include <map>

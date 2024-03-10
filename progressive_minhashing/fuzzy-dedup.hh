@@ -6,23 +6,12 @@
 #include <vector>
 #include <cstring>
 #include <iostream>
+#include <map>
 
 #include "str-util.hh"
 #include "MurmurHash3.h"
 
-// cityhash
-template <class T> inline void hash_combine(std::size_t& seed, const T& v)
-{
-    std::hash<T> hasher;
-    const std::size_t kMul = 0x9ddfea08eb382d69ULL;
-    std::size_t a = (hasher(v) ^ seed) * kMul;
-    a ^= (a >> 47);
-    std::size_t b = (seed ^ a) * kMul;
-    b ^= (b >> 47);
-    seed = b * kMul;
-}
-
-
+#if 0
 // B-byte minhash
 // for now, B must 2
 template<uint32_t BUCKET_SIZE = 10, uint32_t B = 2>
@@ -206,7 +195,31 @@ bool sort_minhashes(
 
   return true;
 }
+#endif
 
+///
+/// Modify vocab id so that a vocab which contains digit character(includes Zenkaku digit) to a vocab id whose string is all composed of placeholder character
+///
+///
+/// Example(placeholder_str = "0")
+///
+/// Input
+///
+/// "012" -> 1000
+/// "125" -> 2000
+///
+/// =>
+///
+/// "000" -> 3000
+/// "012" -> 3000
+/// "125" -> 3000
+///
+///
+
+bool num_to_placeholder(
+  const std::map<std::string, int> &str_to_id_map,
+  const std::string &placeholder_str,
+  std::map<std::string, int> &dst);
 
 #if 0
 ///
