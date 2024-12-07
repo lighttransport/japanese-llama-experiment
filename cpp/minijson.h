@@ -9,6 +9,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <cstdint>
 
 //#define __MINIJSON_LIBERAL
 
@@ -675,13 +676,20 @@ template <typename Iter>
 inline error parse_number(Iter &i, value &v) {
   Iter p = i;
 
+  if (*i == '-') {
+    // sign char is considered in detail::from_chars(p)
+    i++;
+  }
+
 #define MINIJSON_IS_NUM(x) ('0' <= x && x <= '9')
 #define MINIJSON_IS_ALNUM(x) \
   (('0' <= x && x <= '9') || ('a' <= x && x <= 'f') || ('A' <= x && x <= 'F'))
   if (*i == '0' && *(i + 1) == 'x' && MINIJSON_IS_ALNUM(*(i + 2))) {
     i += 3;
     while (MINIJSON_IS_ALNUM(*i)) i++;
-    v = static_cast<number>(detail::from_chars(p));
+
+    double dv = detail::from_chars(p);
+    v = static_cast<number>(dv);
   } else {
     while (MINIJSON_IS_NUM(*i)) i++;
     if (*i == '.') {
@@ -700,7 +708,8 @@ inline error parse_number(Iter &i, value &v) {
       }
       while (MINIJSON_IS_NUM(*i)) i++;
     }
-    v = static_cast<number>(detail::from_chars(p));
+    double dv = detail::from_chars(p);
+    v = static_cast<number>(dv);
   }
   if (*i && nullptr == detail::my_strchr(":,\x7d]\r\n ", *i)) {
     i = p;
@@ -793,7 +802,7 @@ inline error parse_any(Iter &i, value &v) {
   if (*i == '[') return parse_array(i, v);
   if (*i == 't' || *i == 'f') return parse_boolean(i, v);
   if (*i == 'n') return parse_null(i, v);
-  if ('0' <= *i && *i <= '9') return parse_number(i, v);
+  if ((*i == '-') || ('0' <= *i && *i <= '9')) return parse_number(i, v);
   if (*i == '"') return parse_string(i, v);
   return invalid_token_error;
 }
@@ -880,7 +889,7 @@ namespace detail {
     @return codepoint (0x0000..0xFFFF) or -1 in case of an error (e.g. EOF or
             non-hex character)
     */
-    int string_parser::get_codepoint() 
+    int string_parser::get_codepoint()
     {
         // this function only makes sense after reading `\u`
         //JSON_ASSERT(current == 'u');
@@ -1612,6 +1621,7 @@ const char *my_strchr(const char *p, int ch) {
 
 #include <cstring>
 #include <limits>
+#include <array>
 
 namespace minijson {
 namespace simdjson {
