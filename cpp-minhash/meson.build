@@ -40,7 +40,8 @@ install_headers(
   'include/jaccard.hpp',
   'include/simd_jaccard.hpp',
   'include/sais.hpp',
-  'include/deduplicator.hpp'
+  'include/deduplicator.hpp',
+  'include/edit_similarity.hpp'
 )
 
 # Examples
@@ -79,6 +80,12 @@ if get_option('build_examples')
 
   dedup_example = executable('dedup_example',
     'examples/dedup_example.cpp',
+    include_directories: inc,
+    link_with: minhash_lib
+  )
+
+  edit_similarity_example = executable('edit_similarity_example',
+    'examples/edit_similarity_example.cpp',
     include_directories: inc,
     link_with: minhash_lib
   )

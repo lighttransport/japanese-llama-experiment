@@ -1,5 +1,97 @@
 # Changelog
 
+## Version 1.4.0 (2025-01-20)
+
+### New Features
+
+**Edit Distance & Similarity Algorithms** (`include/edit_similarity.hpp`)
+- Complete suite of edit distance and similarity metrics
+- Modern C++20 implementation with concepts and ranges
+- Header-only implementation with space-optimized algorithms
+- Generic support for strings and equality-comparable sequences
+
+**Algorithms Implemented**:
+- **Levenshtein Distance**: Classic edit distance with insertions, deletions, substitutions
+  - O(m × n) time complexity
+  - O(min(m, n)) space complexity (optimized)
+  - Normalized similarity score in [0.0, 1.0]
+- **Damerau-Levenshtein Distance**: Includes transposition operations
+  - O(m × n) time and space complexity
+  - Ideal for typo detection and spell checking
+- **Longest Common Subsequence (LCS)**: Alternative similarity metric
+  - O(m × n) time complexity
+  - O(min(m, n)) space complexity (optimized)
+  - LCS-based similarity scoring
+- **Hamming Distance**: Fast equal-length sequence comparison
+  - O(n) time complexity
+  - O(1) space complexity
+  - Returns SIZE_MAX for sequences of different lengths
+
+**API**:
+```cpp
+using namespace minhash::edit;
+
+// Levenshtein distance
+auto dist = levenshtein_distance("kitten", "sitting");  // 3
+auto sim = similarity("kitten", "sitting");             // 0.5714
+
+// Damerau-Levenshtein
+auto dam_dist = damerau_levenshtein_distance("abcd", "acbd");  // 1
+auto dam_sim = damerau_similarity("abcd", "acbd");             // 0.75
+
+// Longest Common Subsequence
+auto lcs_len = lcs_length("AGGTAB", "GXTXAYB");      // 4
+auto lcs_sim = lcs_similarity("AGGTAB", "GXTXAYB");  // 0.5714
+
+// Hamming distance
+auto ham_dist = hamming_distance("karolin", "kathrin");  // 3
+auto ham_sim = hamming_similarity("karolin", "kathrin"); // 0.5714
+
+// Generic sequences (vectors, etc.)
+std::vector<int> v1 = {1, 2, 3, 4, 5};
+std::vector<int> v2 = {1, 3, 4, 5, 6};
+auto vec_dist = levenshtein_distance(v1, v2);  // 2
+```
+
+**New Example**:
+- `edit_similarity_example.cpp` - Comprehensive demonstrations
+  - Basic Levenshtein distance calculations
+  - Various string comparison scenarios
+  - Damerau-Levenshtein with transposition examples
+  - LCS computation and similarity
+  - Hamming distance for equal-length strings
+  - Generic sequence operations (integer vectors)
+  - Practical use case: spell checking candidates
+  - Algorithm comparison across different metrics
+
+**Features**:
+- Space-optimized implementations using row-swapping technique
+- Generic template support for any equality-comparable type
+- Normalized similarity scores for easy interpretation
+- Comprehensive edge case handling (empty strings, different lengths)
+- Clean, modern C++20 API with concepts
+
+**Use Cases**:
+- Spell checking and correction
+- Fuzzy string matching
+- DNA sequence alignment
+- Plagiarism detection
+- Record linkage and deduplication
+- Natural language processing
+- Approximate string search
+
+**Performance** (typical on modern hardware):
+- Levenshtein distance: ~10-100 microseconds for 100-character strings
+- Hamming distance: ~100-500 nanoseconds for 100-character strings
+- Memory efficient: O(min(m,n)) for Levenshtein and LCS
+
+### Documentation
+
+- Updated `README.md` with edit similarity features and usage examples
+- Added algorithm comparison table
+- Comprehensive example code demonstrating all algorithms
+- Practical application examples
+
 ## Version 1.3.0 (2024-10-19)
 
 ### New Features

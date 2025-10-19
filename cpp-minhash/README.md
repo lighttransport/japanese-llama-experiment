@@ -31,6 +31,15 @@ A modern C++20 implementation of MinHash for estimating Jaccard similarity and d
 - **Simple & reliable**: Easy to verify correctness
 - **Pattern matching**: Binary search on suffix array for substring queries
 
+### Edit Distance & Similarity
+- **Levenshtein distance**: Classic edit distance with insertions, deletions, substitutions
+- **Damerau-Levenshtein**: Includes character transpositions for typo detection
+- **LCS (Longest Common Subsequence)**: Alternative similarity metric
+- **Hamming distance**: Fast comparison for equal-length sequences
+- **Normalized similarities**: All metrics return scores in [0.0, 1.0] range
+- **Space-optimized**: O(min(m,n)) memory for Levenshtein distance
+- **Generic sequences**: Works with strings and any equality-comparable types
+
 ### General
 - **Header-mostly**: Core algorithms are header-only, only MurmurHash3 needs compilation
 - **Dual build systems**: Supports both CMake and Meson+Ninja
@@ -395,6 +404,62 @@ The library automatically detects and uses:
 - FM-index construction
 - Text indexing and search
 - Bioinformatics sequence analysis
+
+### Edit Distance & Similarity
+
+Compute edit distance and various similarity metrics for strings and sequences:
+
+```cpp
+#include <edit_similarity.hpp>
+
+int main() {
+    using namespace minhash::edit;
+
+    // Levenshtein distance (edit distance)
+    std::string str1 = "kitten";
+    std::string str2 = "sitting";
+
+    auto distance = levenshtein_distance(str1, str2);  // 3
+    auto similarity = similarity(str1, str2);          // 0.5714 (57.14%)
+
+    std::cout << "Edit distance: " << distance << "\n";
+    std::cout << "Similarity: " << similarity << "\n";
+
+    // Damerau-Levenshtein (includes transpositions)
+    auto dam_distance = damerau_levenshtein_distance("abcd", "acbd");  // 1
+    auto dam_similarity = damerau_similarity("abcd", "acbd");          // 0.75
+
+    // Longest Common Subsequence
+    auto lcs_len = lcs_length("AGGTAB", "GXTXAYB");      // 4 (GTAB)
+    auto lcs_sim = lcs_similarity("AGGTAB", "GXTXAYB");  // 0.5714
+
+    // Hamming distance (equal-length sequences only)
+    auto ham_dist = hamming_distance("karolin", "kathrin");  // 3
+    auto ham_sim = hamming_similarity("karolin", "kathrin"); // 0.5714
+
+    // Works with generic sequences too
+    std::vector<int> vec1 = {1, 2, 3, 4, 5};
+    std::vector<int> vec2 = {1, 3, 4, 5, 6};
+    auto vec_distance = levenshtein_distance(vec1, vec2);  // 2
+}
+```
+
+**Algorithm Comparison:**
+
+| Algorithm | Use Case | Complexity | Notes |
+|-----------|----------|------------|-------|
+| Levenshtein | General edit distance | O(mn) time, O(min(m,n)) space | Most common, handles insertions/deletions/substitutions |
+| Damerau-Levenshtein | Typo detection | O(mn) time & space | Adds transposition support |
+| LCS | Alternative similarity | O(mn) time, O(min(m,n)) space | Based on common subsequence |
+| Hamming | Fixed-length comparison | O(n) time, O(1) space | Fast but requires equal lengths |
+
+**Practical Applications:**
+- Spell checking and correction
+- Fuzzy string matching
+- DNA sequence alignment
+- Plagiarism detection
+- Record linkage and deduplication
+- Natural language processing
 
 ## API Reference
 

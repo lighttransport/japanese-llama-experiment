@@ -32,6 +32,7 @@ set(MINHASH_HEADERS
     include/simd_jaccard.hpp
     include/sais.hpp
     include/deduplicator.hpp
+    include/edit_similarity.hpp
 )
 
 # Create library
@@ -70,6 +71,9 @@ if(BUILD_EXAMPLES)
 
     add_executable(dedup_example examples/dedup_example.cpp)
     target_link_libraries(dedup_example PRIVATE minhash)
+
+    add_executable(edit_similarity_example examples/edit_similarity_example.cpp)
+    target_link_libraries(edit_similarity_example PRIVATE minhash)
 endif()
 
 # Installation
