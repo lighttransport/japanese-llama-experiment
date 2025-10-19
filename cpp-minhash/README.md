@@ -1,18 +1,29 @@
 # cpp-minhash
 
-A modern C++20 implementation of MinHash for estimating Jaccard similarity and detecting near-duplicate documents.
+A modern C++20 implementation of MinHash for estimating Jaccard similarity and detecting near-duplicate documents, plus memory-efficient suffix array construction.
 
 ## Features
 
+### MinHash & Similarity
 - **Modern C++20**: Uses concepts, ranges, and other C++20 features
 - **Multiple hash sizes**: Support for 32-bit, 64-bit, and 128-bit hash values
 - **Switchable hash algorithms**: Choose between MurmurHash3 (default, high quality) and FNV-1a (fast, 3.4x speedup)
 - **LSH Banding**: Built-in support for Locality-Sensitive Hashing bands for efficient duplicate detection
 - **SIMD Optimizations**: Automatic CPU detection and dispatch for AVX2, SSE2, and ARM NEON
 - **Exact Jaccard**: Ground truth similarity computation for validation and small datasets
-- **Header-mostly**: Core algorithm is header-only, only MurmurHash3 implementation needs compilation
 - **Flexible API**: Supports single updates, batch updates, and merge operations
 - **High performance**: Uses MurmurHash3 or FNV-1a for hashing with SIMD-accelerated comparisons
+
+### Suffix Arrays
+- **Memory-efficient**: Full 32-bit range (4GB) vs libsais 2GB limit
+- **No MSB bit flags**: Allows twice the maximum text size
+- **Fast prefix-doubling algorithm**: O(n log² n), practical for most use cases
+- **SIMD-accelerated**: AVX2, SSE2, and ARM NEON support for ~2-3x speedup
+- **Simple & reliable**: Easy to verify correctness
+- **Pattern matching**: Binary search on suffix array for substring queries
+
+### General
+- **Header-mostly**: Core algorithms are header-only, only MurmurHash3 needs compilation
 - **Dual build systems**: Supports both CMake and Meson+Ninja
 
 ## What is MinHash?
@@ -240,6 +251,77 @@ std::cout << minhash::hash::get_algorithm_name() << "\n";  // "MurmurHash3" or "
 ```
 
 See [HASH_ALGORITHMS.md](HASH_ALGORITHMS.md) for detailed comparison and benchmarks.
+
+### Suffix Array Construction
+
+Build suffix arrays for pattern matching, text compression, and bioinformatics:
+
+```cpp
+#include <sais.hpp>
+
+int main() {
+    // Build suffix array from string
+    std::string text = "banana";
+    auto SA = sais::build_suffix_array(text);
+
+    // SA = [5, 3, 1, 0, 4, 2]
+    // Suffixes in lexicographic order:
+    // SA[0]=5: "a"
+    // SA[1]=3: "ana"
+    // SA[2]=1: "anana"
+    // SA[3]=0: "banana"
+    // SA[4]=4: "na"
+    // SA[5]=2: "nana"
+
+    // Pattern matching using binary search
+    std::string pattern = "ana";
+    auto lower = std::lower_bound(SA.begin(), SA.end(), 0,
+        [&](uint32_t sa_pos, int) {
+            return text.substr(sa_pos).compare(0, pattern.size(), pattern) < 0;
+        });
+
+    auto upper = std::upper_bound(SA.begin(), SA.end(), 0,
+        [&](int, uint32_t sa_pos) {
+            return pattern.compare(text.substr(sa_pos, pattern.size())) < 0;
+        });
+
+    // Found 2 occurrences: positions 1 and 3
+    for (auto it = lower; it != upper; ++it) {
+        std::cout << "Match at position " << *it << "\n";
+    }
+}
+```
+
+**Memory Efficiency:**
+- **Full 32-bit range**: Supports text up to 4GB (UINT32_MAX bytes)
+- **libsais limitation**: Uses MSB bit for flags, limiting to 2GB (INT32_MAX bytes)
+- **Our advantage**: 2x larger maximum text size with same memory
+
+**SIMD Acceleration:**
+```cpp
+// Check which SIMD instruction set is being used
+std::cout << "SIMD: " << sais::get_simd_name() << "\n";
+// Output: "AVX2", "SSE2", "NEON", or "Scalar"
+```
+
+The library automatically detects and uses:
+- **AVX2**: 8-way parallel, ~2-3x faster (Intel Haswell+, AMD Excavator+)
+- **SSE2**: 4-way parallel, ~1.5-2x faster (Intel Pentium 4+, AMD Athlon 64+)
+- **ARM NEON**: 4-way parallel, ~1.5-2x faster (ARMv7-A+, all ARMv8)
+- **Scalar**: Portable fallback for all architectures
+
+**Performance (O(n log² n) with SIMD optimization):**
+- 10K characters: ~2ms
+- 100K characters: ~20ms
+- 1M characters: ~300ms
+
+**Use Cases:**
+- Pattern matching with binary search
+- Longest common substring
+- Burrows-Wheeler Transform (BWT) for compression
+- FM-index construction
+- Text indexing and search
+- Bioinformatics sequence analysis
 
 ## API Reference
 

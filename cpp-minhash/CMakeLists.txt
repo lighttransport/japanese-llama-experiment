@@ -30,6 +30,7 @@ set(MINHASH_HEADERS
     include/hash_function.hpp
     include/jaccard.hpp
     include/simd_jaccard.hpp
+    include/sais.hpp
 )
 
 # Create library
@@ -62,6 +63,9 @@ if(BUILD_EXAMPLES)
     add_executable(hash_benchmark_fnv1a examples/hash_benchmark.cpp)
     target_link_libraries(hash_benchmark_fnv1a PRIVATE minhash)
     target_compile_definitions(hash_benchmark_fnv1a PRIVATE MINHASH_USE_FNV1A)
+
+    add_executable(sais_example examples/sais_example.cpp)
+    target_link_libraries(sais_example PRIVATE minhash)
 endif()
 
 # Installation

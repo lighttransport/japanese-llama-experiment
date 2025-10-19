@@ -38,7 +38,8 @@ install_headers(
   'include/fnv1a.hpp',
   'include/hash_function.hpp',
   'include/jaccard.hpp',
-  'include/simd_jaccard.hpp'
+  'include/simd_jaccard.hpp',
+  'include/sais.hpp'
 )
 
 # Examples
@@ -67,6 +68,12 @@ if get_option('build_examples')
     include_directories: inc,
     link_with: minhash_lib,
     cpp_args: ['-DMINHASH_USE_FNV1A']
+  )
+
+  sais_example = executable('sais_example',
+    'examples/sais_example.cpp',
+    include_directories: inc,
+    link_with: minhash_lib
   )
 endif
 
