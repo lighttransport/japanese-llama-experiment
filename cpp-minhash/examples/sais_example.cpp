@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+// Copyright 2025 - Present Light Transport Entertainment Inc.
 // SAIS Suffix Array Example and Test
 
 #include <iostream>

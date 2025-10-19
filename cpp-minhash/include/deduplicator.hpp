@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2024 cpp-minhash
+// Copyright 2025 - Present Light Transport Entertainment Inc.
 // LSH-based Document Deduplication using MinHash
 // Efficient near-duplicate detection with configurable similarity threshold
 

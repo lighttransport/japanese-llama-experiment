@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
+// Copyright 2025 - Present Light Transport Entertainment Inc.
 // MurmurHash3 C++ wrapper
-// Based on Austin Appleby's MurmurHash3
+// Based on Austin Appleby's MurmurHash3 (public domain)
 
 #pragma once
 

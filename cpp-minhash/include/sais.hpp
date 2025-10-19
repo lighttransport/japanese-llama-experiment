@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2024 cpp-minhash
+// Copyright 2025 - Present Light Transport Entertainment Inc.
 // Suffix Array Construction
 // Memory-efficient implementation with full 32-bit range and SIMD optimizations
 

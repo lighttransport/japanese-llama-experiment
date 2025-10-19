@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2024 cpp-minhash
+// Copyright 2025 - Present Light Transport Entertainment Inc.
 // FNV-1a Hash Algorithm with SIMD optimizations
 
 #pragma once

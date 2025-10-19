@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2024 cpp-minhash
+// Copyright 2025 - Present Light Transport Entertainment Inc.
 // Hash function abstraction layer - switchable between MurmurHash3 and FNV-1a
 
 #pragma once

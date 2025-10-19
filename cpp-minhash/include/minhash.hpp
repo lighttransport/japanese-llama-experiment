@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2024 MinHash C++20 Implementation
+// Copyright 2025 - Present Light Transport Entertainment Inc.
 
 #pragma once
 

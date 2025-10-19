@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+// Copyright 2025 - Present Light Transport Entertainment Inc.
 // Exact Jaccard and SIMD optimization example
 
 #include <iostream>

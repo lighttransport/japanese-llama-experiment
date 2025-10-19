@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+// Copyright 2025 - Present Light Transport Entertainment Inc.
 // Deduplication Example and Benchmark
 
 #include <iostream>

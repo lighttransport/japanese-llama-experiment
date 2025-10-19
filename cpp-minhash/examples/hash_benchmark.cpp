@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+// Copyright 2025 - Present Light Transport Entertainment Inc.
 // Hash Algorithm Comparison Benchmark
 // Compile with -DMINHASH_USE_FNV1A to use FNV-1a instead of MurmurHash3
 
