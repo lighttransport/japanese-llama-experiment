@@ -1,0 +1,44 @@
+# Build directories
+build/
+build-*/
+_build/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!cmake/*.cmake
+!cmake/*.cmake.in
+!CMakeLists.txt
+
+# Meson
+.ninja_deps
+.ninja_log
+
+# Compiled files
+*.o
+*.so
+*.so.*
+*.a
+*.dylib
+*.dll
+*.exe
+
+# Examples
+basic_example
+!examples/basic_example.cpp
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Package files
+*.deb
+*.rpm
+*.tar.gz
+*.zip
