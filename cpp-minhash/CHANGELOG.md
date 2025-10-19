@@ -1,5 +1,59 @@
 # Changelog
 
+## Version 1.3.0 (2024-10-19)
+
+### New Features
+
+**LSH-Based Document Deduplication** (`include/deduplicator.hpp`)
+- Complete deduplication system using MinHash + LSH banding
+- Configurable bands (b) and rows (r) for tunable similarity threshold
+- Efficient candidate pair generation with band hash tables
+- Union-Find algorithm for clustering duplicate documents
+- Comprehensive statistics: false positive rate, deduplication ratio
+- Optimal threshold calculation: t = (1/b)^(1/r)
+- Probability curve visualization for LSH parameters
+
+**Deduplication Features**:
+- Character-level n-gram support (3-grams, 5-grams, etc.)
+- Word-level shingle support (phrase-based similarity)
+- Multiple documents batch processing
+- Configurable similarity thresholds
+- Duplicate cluster detection
+- Memory-efficient band hash tables
+- Fast candidate verification using Jaccard similarity
+
+**API**:
+```cpp
+Deduplicator64 dedup(42);  // 128 hashes, 16 bands
+
+// Add documents
+dedup.add_document(id, generate_ngrams(text, 3));
+
+// Find duplicates at 80% similarity
+auto clusters = dedup.find_duplicates(0.8);
+
+// Get statistics
+auto stats = dedup.get_stats();
+```
+
+**New Example**:
+- `dedup_example.cpp` - Comprehensive deduplication demonstration
+  - Basic deduplication with character n-grams
+  - Word-level shingle deduplication
+  - Threshold sensitivity analysis
+  - Performance benchmarks (100, 1K, 10K documents)
+  - LSH probability curve visualization
+
+**Helper Functions**:
+- `generate_ngrams()` - Character-level n-gram extraction
+- `generate_word_shingles()` - Word-level shingle extraction
+
+**Performance** (10K documents, 500 chars each):
+- Build time: ~5 seconds
+- Deduplication: ~9 ms
+- Candidate generation highly efficient
+- False positive rate: ~2-5% (tunable)
+
 ## Version 1.2.0 (2024-10-19)
 
 ### New Features

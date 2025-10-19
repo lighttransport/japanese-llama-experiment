@@ -39,7 +39,8 @@ install_headers(
   'include/hash_function.hpp',
   'include/jaccard.hpp',
   'include/simd_jaccard.hpp',
-  'include/sais.hpp'
+  'include/sais.hpp',
+  'include/deduplicator.hpp'
 )
 
 # Examples
@@ -72,6 +73,12 @@ if get_option('build_examples')
 
   sais_example = executable('sais_example',
     'examples/sais_example.cpp',
+    include_directories: inc,
+    link_with: minhash_lib
+  )
+
+  dedup_example = executable('dedup_example',
+    'examples/dedup_example.cpp',
     include_directories: inc,
     link_with: minhash_lib
   )

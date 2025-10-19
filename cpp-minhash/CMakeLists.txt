@@ -31,6 +31,7 @@ set(MINHASH_HEADERS
     include/jaccard.hpp
     include/simd_jaccard.hpp
     include/sais.hpp
+    include/deduplicator.hpp
 )
 
 # Create library
@@ -66,6 +67,9 @@ if(BUILD_EXAMPLES)
 
     add_executable(sais_example examples/sais_example.cpp)
     target_link_libraries(sais_example PRIVATE minhash)
+
+    add_executable(dedup_example examples/dedup_example.cpp)
+    target_link_libraries(dedup_example PRIVATE minhash)
 endif()
 
 # Installation
