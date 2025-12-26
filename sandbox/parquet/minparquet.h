@@ -960,6 +960,228 @@ private:
 };
 
 // ============================================================================
+// Snappy Decompression (minimal implementation)
+// ============================================================================
+
+#ifndef MINPQ_NO_SNAPPY
+class SnappyDecompressor {
+public:
+    static bool decompress(const uint8_t* src, size_t src_size,
+                          uint8_t* dst, size_t dst_size) {
+        if (src_size == 0) return false;
+
+        size_t src_pos = 0;
+        size_t dst_pos = 0;
+
+        // Read uncompressed length (varint)
+        uint32_t uncompressed_len = 0;
+        int shift = 0;
+        while (src_pos < src_size) {
+            uint8_t b = src[src_pos++];
+            uncompressed_len |= static_cast<uint32_t>(b & 0x7F) << shift;
+            if ((b & 0x80) == 0) break;
+            shift += 7;
+            if (shift > 28) return false;  // overflow protection
+        }
+
+        if (uncompressed_len > dst_size) return false;
+
+        // Process elements
+        while (src_pos < src_size && dst_pos < uncompressed_len) {
+            uint8_t tag = src[src_pos++];
+            uint8_t tag_type = tag & 0x03;
+
+            if (tag_type == 0) {
+                // Literal
+                uint32_t len = (tag >> 2) + 1;
+                if (len > 60) {
+                    // Length is in following bytes
+                    int extra_bytes = len - 60;
+                    if (src_pos + extra_bytes > src_size) return false;
+                    len = 1;
+                    for (int i = 0; i < extra_bytes; i++) {
+                        len += static_cast<uint32_t>(src[src_pos++]) << (i * 8);
+                    }
+                }
+                if (src_pos + len > src_size) return false;
+                if (dst_pos + len > dst_size) return false;
+                std::memcpy(dst + dst_pos, src + src_pos, len);
+                src_pos += len;
+                dst_pos += len;
+            } else {
+                // Copy
+                uint32_t len = 0;
+                uint32_t offset = 0;
+
+                if (tag_type == 1) {
+                    // Copy with 1-byte offset
+                    len = ((tag >> 2) & 0x07) + 4;
+                    if (src_pos >= src_size) return false;
+                    offset = ((tag >> 5) << 8) | src[src_pos++];
+                } else if (tag_type == 2) {
+                    // Copy with 2-byte offset
+                    len = (tag >> 2) + 1;
+                    if (src_pos + 2 > src_size) return false;
+                    offset = src[src_pos] | (static_cast<uint32_t>(src[src_pos + 1]) << 8);
+                    src_pos += 2;
+                } else {
+                    // Copy with 4-byte offset
+                    len = (tag >> 2) + 1;
+                    if (src_pos + 4 > src_size) return false;
+                    offset = src[src_pos] |
+                             (static_cast<uint32_t>(src[src_pos + 1]) << 8) |
+                             (static_cast<uint32_t>(src[src_pos + 2]) << 16) |
+                             (static_cast<uint32_t>(src[src_pos + 3]) << 24);
+                    src_pos += 4;
+                }
+
+                if (offset == 0 || offset > dst_pos) return false;
+                if (dst_pos + len > dst_size) return false;
+
+                // Copy with overlap handling
+                size_t copy_src = dst_pos - offset;
+                for (uint32_t i = 0; i < len; i++) {
+                    dst[dst_pos++] = dst[copy_src++];
+                }
+            }
+        }
+
+        return dst_pos == uncompressed_len;
+    }
+};
+#endif
+
+// ============================================================================
+// LZ4 Decompression (minimal implementation)
+// ============================================================================
+
+#ifndef MINPQ_NO_LZ4
+class LZ4Decompressor {
+public:
+    // Decompress raw LZ4 block (for LZ4_RAW codec)
+    static bool decompress_block(const uint8_t* src, size_t src_size,
+                                 uint8_t* dst, size_t dst_size,
+                                 size_t& bytes_written) {
+        size_t src_pos = 0;
+        size_t dst_pos = 0;
+
+        while (src_pos < src_size) {
+            if (src_pos >= src_size) return false;
+            uint8_t token = src[src_pos++];
+
+            // Literal length
+            size_t literal_len = (token >> 4) & 0x0F;
+            if (literal_len == 15) {
+                uint8_t b;
+                do {
+                    if (src_pos >= src_size) return false;
+                    b = src[src_pos++];
+                    literal_len += b;
+                } while (b == 255);
+            }
+
+            // Copy literals
+            if (literal_len > 0) {
+                if (src_pos + literal_len > src_size) return false;
+                if (dst_pos + literal_len > dst_size) return false;
+                std::memcpy(dst + dst_pos, src + src_pos, literal_len);
+                src_pos += literal_len;
+                dst_pos += literal_len;
+            }
+
+            // Check if we've reached the end (last sequence has no match)
+            if (src_pos >= src_size) break;
+
+            // Match offset (little-endian 16-bit)
+            if (src_pos + 2 > src_size) return false;
+            size_t offset = src[src_pos] | (static_cast<size_t>(src[src_pos + 1]) << 8);
+            src_pos += 2;
+
+            if (offset == 0 || offset > dst_pos) return false;
+
+            // Match length
+            size_t match_len = (token & 0x0F) + 4;  // minimum match is 4
+            if ((token & 0x0F) == 15) {
+                uint8_t b;
+                do {
+                    if (src_pos >= src_size) return false;
+                    b = src[src_pos++];
+                    match_len += b;
+                } while (b == 255);
+            }
+
+            if (dst_pos + match_len > dst_size) return false;
+
+            // Copy match (with overlap handling)
+            size_t match_src = dst_pos - offset;
+            for (size_t i = 0; i < match_len; i++) {
+                dst[dst_pos++] = dst[match_src++];
+            }
+        }
+
+        bytes_written = dst_pos;
+        return true;
+    }
+
+    // Decompress LZ4_RAW (raw block format)
+    static bool decompress_raw(const uint8_t* src, size_t src_size,
+                               uint8_t* dst, size_t dst_size) {
+        size_t written;
+        return decompress_block(src, src_size, dst, dst_size, written);
+    }
+
+    // Decompress LZ4 (Hadoop LZ4 block format used by legacy Parquet)
+    // Format: sequence of blocks, each with 4-byte uncompressed size + 4-byte compressed size + data
+    static bool decompress_hadoop(const uint8_t* src, size_t src_size,
+                                  uint8_t* dst, size_t dst_size) {
+        size_t src_pos = 0;
+        size_t dst_pos = 0;
+
+        while (src_pos < src_size && dst_pos < dst_size) {
+            // Read block header (big-endian for Hadoop format)
+            if (src_pos + 8 > src_size) break;
+
+            uint32_t uncompressed_block_size =
+                (static_cast<uint32_t>(src[src_pos]) << 24) |
+                (static_cast<uint32_t>(src[src_pos + 1]) << 16) |
+                (static_cast<uint32_t>(src[src_pos + 2]) << 8) |
+                static_cast<uint32_t>(src[src_pos + 3]);
+            src_pos += 4;
+
+            uint32_t compressed_block_size =
+                (static_cast<uint32_t>(src[src_pos]) << 24) |
+                (static_cast<uint32_t>(src[src_pos + 1]) << 16) |
+                (static_cast<uint32_t>(src[src_pos + 2]) << 8) |
+                static_cast<uint32_t>(src[src_pos + 3]);
+            src_pos += 4;
+
+            if (uncompressed_block_size == 0) break;
+            if (src_pos + compressed_block_size > src_size) return false;
+            if (dst_pos + uncompressed_block_size > dst_size) return false;
+
+            if (compressed_block_size == uncompressed_block_size) {
+                // Uncompressed block
+                std::memcpy(dst + dst_pos, src + src_pos, uncompressed_block_size);
+            } else {
+                // Compressed block
+                size_t written;
+                if (!decompress_block(src + src_pos, compressed_block_size,
+                                     dst + dst_pos, uncompressed_block_size, written)) {
+                    return false;
+                }
+                if (written != uncompressed_block_size) return false;
+            }
+
+            src_pos += compressed_block_size;
+            dst_pos += uncompressed_block_size;
+        }
+
+        return dst_pos == dst_size;
+    }
+};
+#endif
+
+// ============================================================================
 // Decompression
 // ============================================================================
 
@@ -974,6 +1196,11 @@ public:
                 std::memcpy(dst, src, src_size);
                 return true;
 
+#ifndef MINPQ_NO_SNAPPY
+            case CompressionCodec::SNAPPY:
+                return SnappyDecompressor::decompress(src, src_size, dst, dst_size);
+#endif
+
 #ifndef MINPQ_NO_GZIP
             case CompressionCodec::GZIP: {
                 unsigned long dest_len = static_cast<unsigned long>(dst_size);
@@ -987,6 +1214,14 @@ public:
                 size_t ret = ZSTD_decompress(dst, dst_size, src, src_size);
                 return !ZSTD_isError(ret);
             }
+#endif
+
+#ifndef MINPQ_NO_LZ4
+            case CompressionCodec::LZ4:
+                return LZ4Decompressor::decompress_hadoop(src, src_size, dst, dst_size);
+
+            case CompressionCodec::LZ4_RAW:
+                return LZ4Decompressor::decompress_raw(src, src_size, dst, dst_size);
 #endif
 
             default:
